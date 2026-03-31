@@ -2,7 +2,7 @@
 
 A global Claude Code command that scaffolds the full `.claude/` and `tasks/` structure for any new project — in one shot.
 
-Built and maintained by [Joe Trapani](https://www.linkedin.com/in/joetrapani/), CTO at Capital Investment Advisors. Part of the [Build Different](https://www.linkedin.com/in/joetrapani/) blog series.
+Built and maintained by [Joe Trapani](https://www.linkedin.com/in/joetrapani/), CTO at Capital Investment Advisors. Part of the [Build Different](https://www.linkedin.com/in/tech-ninja/) blog series. 
 
 ---
 

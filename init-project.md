@@ -80,6 +80,10 @@ Populate with real detected values. Use this structure:
   - Point at logs, errors, failing tests — then resolve them
   - Go fix failing CI tests without being told how
 
+  ### 7. Debugging
+  - When debugging, if you do not have clear logs, do research on web and context7 before guessing. 
+  - If you have attempted a fix more than twice without advancing the issue, stop and re-evaluate your approach
+
   ## Task Management
   - Plan First: Write plan to tasks/todo.md with checkable items
   - Verify Plan: Check in before starting implementation
@@ -96,7 +100,7 @@ Populate with real detected values. Use this structure:
 
 ## Step 5 — Write .claude/rules/code-style.md
 
-Infer conventions from detected linter config (.eslintrc, .prettierrc, pyproject.toml, etc.).
+Infer conventions from detected linter config (.eslintrc, .prettierrc, ruff, etc.).
 Write sensible defaults for the detected stack if none found.
 
 ## Step 6 — Write .claude/rules/testing.md
