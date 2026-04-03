@@ -27,13 +27,22 @@ Type `/init-project` in any new Claude Code project and Claude will:
 
 ## Installation
 
-Save `init-project.md` to your global Claude commands directory:
+Clone this repo and copy the `init-project` skill directory to your personal skills folder:
 
 ```bash
-cp init-project.md ~/.claude/commands/init-project.md
+git clone https://github.com/JTrapani/claude-init-project.git
+cp -r claude-init-project/init-project ~/.claude/skills/init-project
 ```
 
-> **Note:** This is a user-level command. It must live in `~/.claude/commands/`, not inside a project repo — because it runs before any `.claude/` structure exists.
+Or if you already have the repo locally:
+
+```bash
+cp -r init-project ~/.claude/skills/init-project
+```
+
+> **Note:** This is a user-level skill. It must live in `~/.claude/skills/`, not inside a project repo — because it runs before any `.claude/` structure exists.
+>
+> The `init-project/` directory includes `CLAUDE.md` as a supporting file — it contains the workflow rules that get written into each new project's `.claude/CLAUDE.md`. Edit it to customise the rules for your workflow.
 
 ---
 
@@ -61,7 +70,7 @@ Read more: [Build Different — Build the Builder](#) *(link coming)*
 
 ## Requirements
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (Claude Pro/Max subscription or API key)
+- [Claude Code](https://code.claude.com) (Claude Pro/Max subscription or API key)
 - [Context7 MCP](https://context7.com) (strongly recommended — install with `claude mcp add --scope user context7 -- npx -y @upstash/context7-mcp`)
 - Node.js 18+ and npm/npx
 
