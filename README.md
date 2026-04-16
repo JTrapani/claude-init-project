@@ -45,7 +45,7 @@ cd claude-init-project
 
 `install.sh` copies the `init-project` skill into `~/.claude/skills/` and every agent in `agents/*.md` into `~/.claude/agents/`. Re-run it after any `git pull` that updates `agents/` or `init-project/` — Claude Code loads from the `~/.claude/` copies at runtime, so merging the repo alone does not propagate changes to active sessions.
 
-> **Note:** The skill and agents are user-level. They must live in `~/.claude/skills/` and `~/.claude/agents/`, not inside a project repo — because they run before any `.claude/` structure exists. The script overwrites any existing `~/.claude/skills/init-project/` and matching `~/.claude/agents/*.md` files with the repo versions, so fork the repo if you maintain local customisations.
+> **Note:** The skill and agents are user-level. They must live in `~/.claude/skills/` and `~/.claude/agents/`, not inside a project repo — because they run before any `.claude/` structure exists. The script **replaces** `~/.claude/skills/init-project/` wholesale (any hand-edits inside that directory are lost) and **overwrites** matching `~/.claude/agents/*.md` files individually (unrelated agent files in `~/.claude/agents/` are left untouched). Fork the repo if you maintain local customisations.
 >
 > The `init-project/` directory includes `CLAUDE.md` as a supporting file — it contains the workflow rules that get written into each new project's `.claude/CLAUDE.md`. Edit it to customise the rules for your workflow.
 
