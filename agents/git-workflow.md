@@ -2,7 +2,7 @@
 name: git-workflow
 description: Contextual git workflow agent. Detects current state (branch, commits, PR, comments) and executes the next step in the development lifecycle.
 model: opus
-allowed-tools: Read, Grep, Glob, Bash(git *), Bash(gh *), Bash(uv run pytest*), Bash(uv run ruff*)
+allowed-tools: Task, Read, Grep, Glob, Bash(git *), Bash(gh *), Bash(uv run pytest*), Bash(uv run ruff*)
 ---
 
 # Git Workflow Agent
@@ -48,12 +48,15 @@ Execute the matching phase below.
 
 ## Phase 3: Internal Review (on branch, clean, pushed, no PR)
 
-1. Run the code-reviewer subagent against `git diff main...HEAD` (local only, no `--comment` flag)
-2. For each finding:
+1. **You MUST dispatch the `code-reviewer` subagent via the `Task` tool** — do NOT self-review. Pass it the goal, context, and the exact command `git diff main...HEAD` (local only, no `--comment` flag). If the `Task` tool is unavailable in this session, STOP and report the failure to the operator — do not substitute a self-review.
+2. Your Phase 3 report MUST begin with this exact line, proving dispatch happened:
+   `Dispatched code-reviewer subagent: <agent-id-from-task-tool>`
+   If you cannot produce that line, Phase 3 is not complete.
+3. For each finding from the subagent:
    - Valid: fix, commit, push
    - Invalid: note why it's not being changed
-3. Report: review summary and what was addressed
-4. Ask operator if ready to open PR
+4. Report: review summary and what was addressed
+5. Ask operator if ready to open PR
 
 ## Phase 4: Open PR (operator approved, no PR exists)
 
