@@ -38,7 +38,7 @@
   ### 7. Debugging
   - When debugging, if you do not have clear logs, do research on web and context7 before guessing. 
   - If you have attempted a fix more than twice without advancing the issue, stop and re-evaluate your approach
-  - After solving an issue, always give a clear RCA. 
+  - After solving an issue, always give a clear RCA.
 
   ## Task Management
   - Plan First: Write plan to tasks/todo.md with checkable items
@@ -47,6 +47,13 @@
   - Explain Changes: High-level summary at each step
   - Document Results: Add review section to tasks/todo.md
   - Capture Lessons: Update tasks/lessons.md after corrections
+
+  ## Git Workflow
+  - **Always use the `git-workflow` agent** for all git operations — branching, committing, PRs, reviews, and merges
+  - Never commit, push, open PRs, or merge directly — route through the agent
+  - The agent enforces: Linear ticket linking, pre-PR code review, operator approval before merge
+  - Invoke via subagent with `subagent_type: "git-workflow"`
+  - Exception: initial project scaffolding by /init-project (git-workflow is not yet available)
 
   ## Core Principles
   - Simplicity First: Make every change as simple as possible. Impact minimal code.

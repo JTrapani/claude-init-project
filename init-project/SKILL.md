@@ -46,16 +46,32 @@ Populate with real detected values. Use this structure:
   Read the workflow rules from [CLAUDE.md](CLAUDE.md) (located in this skill's directory) and include the full contents of that file in the generated `.claude/CLAUDE.md`, after the project-specific sections (Stack, Key Conventions, Common Commands) written above.
 
 
-## Step 5 — Write .claude/rules/code-style.md
+
+## Step 5 — Verify global subagents
+
+Check if the following agents exist in `~/.claude/agents/`:
+- `code-reviewer.md`
+- `git-workflow.md`
+- `doc-generator.md`
+- `test-writer.md`
+
+For each agent:
+- If present: report as "already installed" — do not overwrite (user may have customized)
+- If missing: warn the user and instruct them to install from the init-project repo:
+  `cp agents/*.md ~/.claude/agents/`
+
+Report which agents are present and which are missing.
+
+## Step 6 — Write .claude/rules/code-style.md
 
 Infer conventions from detected linter config (.eslintrc, .prettierrc, ruff, etc.).
 Write sensible defaults for the detected stack if none found.
 
-## Step 6 — Write .claude/rules/testing.md
+## Step 7 — Write .claude/rules/testing.md
 
 Detect the test framework and write conventions to match.
 
-## Step 7 — Write .claude/commands/fix-issue.md
+## Step 8 — Write .claude/commands/fix-issue.md
 
   ---
   name: fix-issue
@@ -75,7 +91,7 @@ Detect the test framework and write conventions to match.
   9. Push and open a PR with a summary of what changed and why
   10. Update tasks/todo.md
 
-## Step 8 — Write .claude/settings.json
+## Step 9 — Write .claude/settings.json
 
   {
     "autoMemoryEnabled": true,
@@ -88,7 +104,7 @@ Detect the test framework and write conventions to match.
     }
   }
 
-## Step 9 — Write tasks/todo.md
+## Step 10 — Write tasks/todo.md
 
   # Tasks
 
@@ -107,7 +123,7 @@ Detect the test framework and write conventions to match.
   ### Review
   _Added after completion: what was done, what was learned._
 
-## Step 10 — Write tasks/lessons.md
+## Step 11 — Write tasks/lessons.md
 
   # Lessons Learned
 
@@ -122,16 +138,16 @@ Detect the test framework and write conventions to match.
   - [What went wrong or what was discovered]
   - [The rule that prevents it happening again]
 
-## Step 11 — Prompt: GitHub repo setup
+## Step 12 — Prompt: GitHub repo setup
 
 After creating all files, ask the user:
 
   "Would you like to initialise this project as a GitHub repository and push
   the initial structure? (yes/no)"
 
-If yes, proceed through the following. If no, skip to Step 12.
+If yes, proceed through the following. If no, skip to Step 13.
 
-### 11a — Check prerequisites
+### 12a — Check prerequisites
 
 Run: git --version && gh --version && gh auth status
 
@@ -139,14 +155,14 @@ Run: git --version && gh --version && gh auth status
 - If `gh` is not installed: tell the user to install from https://cli.github.com and stop
 - If `gh` is not authenticated: run `gh auth login` and wait for completion
 
-### 11b — Check for existing git repo
+### 12b — Check for existing git repo
 
 Run: git rev-parse --git-dir 2>/dev/null
 
 - If already a git repo: skip `git init`
 - If not: run `git init`
 
-### 11c — Create .gitignore
+### 12c — Create .gitignore
 
 Check if `.gitignore` exists. If not, create one. Always include:
 
@@ -175,7 +191,7 @@ Check if `.gitignore` exists. If not, create one. Always include:
 
 Add stack-specific entries for the detected stack (coverage/, .pytest_cache/, etc.).
 
-### 11d — Create GitHub repository
+### 12d — Create GitHub repository
 
 All repositories are created PRIVATE by default. This is a firm standard — do not
 ask the user for visibility preference.
@@ -185,7 +201,7 @@ Run: gh repo create <project-name> --private --source=. --remote=origin --descri
 If the directory name is not a valid repo name, suggest a slugified version and
 confirm before proceeding.
 
-### 11e — Stage and commit
+### 12e — Stage and commit
 
 Run:
   git add .
@@ -195,14 +211,14 @@ Run:
   - Add tasks/todo.md and tasks/lessons.md
   - Add .gitignore"
 
-### 11f — Push
+### 12f — Push
 
 Run: git push -u origin main
 
 If the default branch is `master`, use `master` instead.
 After a successful push, print the repo URL from: gh repo view --json url -q .url
 
-## Step 12 — Confirm and summarise
+## Step 13 — Confirm and summarise
 
 Output a clean summary:
 
@@ -214,6 +230,12 @@ Output a clean summary:
     - .claude/settings.json
     - tasks/todo.md
     - tasks/lessons.md
+
+  🤖 Global subagents verified:
+    - ~/.claude/agents/code-reviewer.md   [installed/already present]
+    - ~/.claude/agents/git-workflow.md    [installed/already present]
+    - ~/.claude/agents/doc-generator.md   [installed/already present]
+    - ~/.claude/agents/test-writer.md     [installed/already present]
 
   Stack detected: [what you found]
   Next: review .claude/CLAUDE.md and fill in any [bracketed placeholders]
