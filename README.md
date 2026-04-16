@@ -28,23 +28,24 @@ Type `/init-project` in any new Claude Code project and Claude will:
 
 ## Installation
 
-Clone this repo and copy the skill and subagents to your global Claude directories:
+Clone this repo and run the install script:
 
 ```bash
 git clone https://github.com/JTrapani/claude-init-project.git
-cp -r claude-init-project/init-project ~/.claude/skills/init-project
-mkdir -p ~/.claude/agents
-cp agents/*.md ~/.claude/agents/
+cd claude-init-project
+./install.sh
 ```
 
 Or if you already have the repo locally:
 
 ```bash
-cp -r init-project ~/.claude/skills/init-project
-cp agents/*.md ~/.claude/agents/
+cd claude-init-project
+./install.sh
 ```
 
-> **Note:** The skill and agents are user-level. They must live in `~/.claude/skills/` and `~/.claude/agents/`, not inside a project repo — because they run before any `.claude/` structure exists.
+`install.sh` copies the `init-project` skill into `~/.claude/skills/` and every agent in `agents/*.md` into `~/.claude/agents/`. Re-run it after any `git pull` that updates `agents/` or `init-project/` — Claude Code loads from the `~/.claude/` copies at runtime, so merging the repo alone does not propagate changes to active sessions.
+
+> **Note:** The skill and agents are user-level. They must live in `~/.claude/skills/` and `~/.claude/agents/`, not inside a project repo — because they run before any `.claude/` structure exists. The script **replaces** `~/.claude/skills/init-project/` wholesale (any hand-edits inside that directory are lost) and **overwrites** matching `~/.claude/agents/*.md` files individually (unrelated agent files in `~/.claude/agents/` are left untouched). Fork the repo if you maintain local customisations.
 >
 > The `init-project/` directory includes `CLAUDE.md` as a supporting file — it contains the workflow rules that get written into each new project's `.claude/CLAUDE.md`. Edit it to customise the rules for your workflow.
 
@@ -100,10 +101,10 @@ The `git-workflow` agent is the primary workflow enforcer. CLAUDE.md directs all
 
 ### Installation
 
-The `/init-project` command automatically verifies these agents are installed. To install manually:
+The `/init-project` command automatically verifies these agents are installed. To install or update manually, run the top-level install script from the repo root:
 
 ```bash
-cp agents/*.md ~/.claude/agents/
+./install.sh
 ```
 
 Reference copies are stored in the `agents/` directory of this repo.
