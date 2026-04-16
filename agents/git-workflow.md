@@ -18,6 +18,11 @@ You manage the git lifecycle. You are contextual — detect the current state an
 # - Update branch naming and commit message formats below to match
 - All work MUST have a Linear ticket. Every branch and commit references a ticket ID (e.g., TRA-247).
 - Never commit to main. Never merge without operator approval.
+- **Ticket status transitions are mandatory** and must happen at the phase boundaries below:
+  - **In Progress** — when work begins (Phase 1)
+  - **In Review** — when dev is complete and PR is opened (Phase 4)
+  - **Done** — after merge is verified (Phase 6)
+- Use the Linear MCP tool to transition status. If Linear MCP is unavailable, STOP and ask the operator to transition the ticket manually before proceeding to the next phase.
 
 ## State Detection
 
