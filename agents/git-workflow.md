@@ -2,7 +2,7 @@
 name: git-workflow
 description: Contextual git workflow agent. Detects current state (branch, commits, PR, comments) and executes the next step in the development lifecycle.
 model: opus
-allowed-tools: Task, Read, Grep, Glob, Bash(git *), Bash(gh *), Bash(uv run pytest*), Bash(uv run ruff*)
+allowed-tools: Agent, Task, Read, Grep, Glob, Bash(git *), Bash(gh *), Bash(uv run pytest*), Bash(uv run ruff*)
 ---
 
 # Git Workflow Agent
@@ -48,10 +48,8 @@ Execute the matching phase below.
 
 ## Phase 3: Internal Review (on branch, clean, pushed, no PR)
 
-1. **You MUST dispatch the `code-reviewer` subagent via the `Task` tool** — do NOT self-review. Pass it the goal, context, and the exact command `git diff main...HEAD` (local only, no `--comment` flag). If the `Task` tool is unavailable in this session, STOP and report the failure to the operator — do not substitute a self-review.
-2. Your Phase 3 report MUST begin with this exact line, proving dispatch happened:
-   `Dispatched code-reviewer subagent: <agent-id-from-task-tool>`
-   If you cannot produce that line, Phase 3 is not complete.
+1. **You MUST dispatch the `code-reviewer` subagent via the `Agent` tool** — do NOT self-review. Pass it the goal, context, and the exact command `git diff main...HEAD` (local only, no `--comment` flag). If the `Agent` tool is unavailable in this session, STOP and report the failure to the operator — do not substitute a self-review. If the `Agent` tool is unavailable **or** the `code-reviewer` subagent is not registered, STOP and report. Under no circumstance perform the review yourself, in this context or any sub-context. "Self-review" includes: reading the diff and producing findings in this agent, running a second pass of your own reasoning, or delegating to any agent other than `code-reviewer`. Do not read the diff yourself before dispatch. Pass only the command string (`git diff main...HEAD`) to the subagent so its findings are not anchored by your prior reading.
+2. Your Phase 3 report MUST begin with the first 200 characters of the `code-reviewer` subagent's returned summary, verbatim, inside a fenced block labeled `code-reviewer summary (verbatim)`. This content cannot be produced without actually dispatching the subagent. If you cannot produce that block, Phase 3 is not complete.
 3. For each finding from the subagent:
    - Valid: fix, commit, push
    - Invalid: note why it's not being changed
