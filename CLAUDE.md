@@ -48,6 +48,12 @@
   - Document Results: Add review section to tasks/todo.md
   - Capture Lessons: Update tasks/lessons.md after corrections
 
+  ## Git Workflow
+  - **Always use the `git-workflow` agent** for all git operations — branching, committing, PRs, reviews, and merges
+  - Never commit, push, open PRs, or merge directly — route through the agent
+  - The agent enforces: Linear ticket linking, pre-PR code review, operator approval before merge
+  - Invoke via subagent with `subagent_type: "git-workflow"`
+
   ## Core Principles
   - Simplicity First: Make every change as simple as possible. Impact minimal code.
   - No Laziness: Find root causes. No temporary fixes. Senior developer standards.
