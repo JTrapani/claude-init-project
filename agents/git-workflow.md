@@ -18,10 +18,10 @@ You manage the git lifecycle. You are contextual — detect the current state an
 # - Update branch naming and commit message formats below to match
 - All work MUST have a Linear ticket. Every branch and commit references a ticket ID (e.g., TRA-247).
 - Never commit to main. Never merge without operator approval.
-- **Ticket status transitions are mandatory** and must happen at the phase boundaries below:
-  - **In Progress** — when work begins (Phase 1)
-  - **In Review** — when dev is complete and PR is opened (Phase 4)
-  - **Done** — after merge is verified (Phase 6)
+- **Ticket status transitions are mandatory.** Each transition is tied to a concrete event and is also listed as a step in its phase:
+  - **In Progress** — immediately after the branch is created in Phase 1
+  - **In Review** — immediately after `gh pr create` succeeds in Phase 4
+  - **Done** — immediately after `gh pr merge` succeeds and `git pull` on main contains the squash commit in Phase 6
 - Use the Linear MCP tool to transition status. If Linear MCP is unavailable, STOP and ask the operator to transition the ticket manually before proceeding to the next phase.
 
 ## State Detection
@@ -40,6 +40,7 @@ Execute the matching phase below.
 - Ask for the Linear ticket ID if not provided
 - Create branch: `git checkout -b <type>/<TRA-XXX>-<short-name> main`
 - Types: `feat/`, `fix/`, `hotfix/`, `refactor/`
+- **Transition the Linear ticket to `In Progress`** (see Core Rules)
 
 ## Phase 2: Commit (on branch, dirty working tree)
 
@@ -65,6 +66,7 @@ Execute the matching phase below.
 
 - `gh pr create --title "<title> (TRA-XXX)" --body "<body>"`
 - Body: Summary bullets, Test plan checklist, Linear ticket link
+- **Transition the Linear ticket to `In Review`** (see Core Rules)
 - Report: PR URL
 - Note: CodeRabbit will review asynchronously. Run `/git` again later to address comments.
 
@@ -84,3 +86,4 @@ Execute the matching phase below.
 - **Ask the operator for explicit approval before merging**
 - Only after operator approval: `gh pr merge --squash --delete-branch`
 - `git checkout main && git pull`
+- **Transition the Linear ticket to `Done`** once `git pull` on main contains the squash commit (see Core Rules)
