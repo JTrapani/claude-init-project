@@ -36,9 +36,11 @@ If the repo **is brand new**: proceed to 2b.
 
 ### 2b — Tech-stack interview (brand-new repos only)
 
-Use the `AskUserQuestion` tool to walk through the questions below one at a time. Every question MUST include a **"Not sure — recommend one"** option. When the user picks that option, give ONE opinionated recommendation that is consistent with prior answers plus a one-sentence rationale, then confirm before moving on.
+Use the `AskUserQuestion` tool to walk through the questions below one at a time. Every question MUST include a **"Not sure — recommend one"** option — the tool call always appends this option in addition to the listed choices, even when the list below does not spell it out. When the user picks that option, give ONE opinionated recommendation consistent with prior answers plus a one-sentence rationale, then confirm before moving on.
 
-**Default bias** for recommendations (match what the operator already uses elsewhere):
+**Default bias.** The defaults below apply ONLY when the user picks "Not sure — recommend one" AND they are consistent with prior explicit answers. Never steer a user away from an explicit choice — e.g., if Q2 is TypeScript, do not recommend Python tooling in later questions.
+
+Operator preferences that seed the defaults:
 - Backend / services: Python 3.13 + uv + ruff + pytest, AWS Lambda via CDK, Postgres or DynamoDB, PyJWT
 - Agents / ML: Strands Agents + Bedrock AgentCore on Lambda, moto for AWS test doubles
 - Frontend / web UI: Next.js (App Router) + Tailwind + shadcn/ui, deployed on Vercel
@@ -53,9 +55,10 @@ Ask in this order, skipping any question made irrelevant by earlier answers:
    - Python CLI → Typer (default), Click, argparse
    - TypeScript web → Next.js App Router (default), Remix, SvelteKit, Astro
    - TypeScript server (Node runtime for APIs / workers) → Hono (default), Express, Fastify, NestJS
+   - Go / Rust → skip the framework question (these ecosystems lean on stdlib + lightweight libraries; capture that as "stdlib" in the dictionary)
 4. **UI styling** (only if there's a UI) — Tailwind + shadcn/ui (default), Tailwind only, CSS Modules, none.
 5. **Database** — Postgres (default), DynamoDB, SQLite, MySQL, MongoDB, none yet, not sure.
-6. **Auth** — PyJWT / custom JWT (default for Python backends), Auth.js / NextAuth (default for Next.js), Clerk, Cognito, Auth0, none yet, not sure.
+6. **Auth** — only offer options consistent with Q2 + Q3. Python backends → PyJWT / custom JWT (default), Cognito, Auth0, none yet. Next.js → Auth.js / NextAuth (default), Clerk, Auth0, none yet. Do not suggest PyJWT for a TS-only project or Auth.js for a Python-only backend.
 7. **Testing** — tailored to language: Python → pytest + pytest-mock + moto (default; moto if AWS is in play). TS → Vitest + Playwright. Go → stdlib `testing`. Rust → `cargo test`.
 8. **Linter / formatter** — Python → ruff (default, handles lint + format; target the chosen Python version, line-length 120, rules `E,F,I,W`). TS → Biome (default) or ESLint + Prettier. Go → `gofmt` + `golangci-lint`. Rust → `clippy` + `rustfmt`.
 9. **Package manager** — Python → uv (default). TS → pnpm (default), npm, yarn, bun.
@@ -73,7 +76,11 @@ Run: mkdir -p .claude/rules .claude/commands .claude/agents .claude/skills tasks
 
 ## Step 4 — Write .claude/CLAUDE.md
 
-Populate with real detected values. Use this structure:
+Populate with real values. **Source of truth**: if the stack dictionary from Step 2b exists (brand-new repo path), use it verbatim — language, framework, DB, auth, testing, linter, package manager, and hosting all come from there. Otherwise fall back to values detected from the manifest files read in Step 2.
+
+The `## Common Commands` section MUST include the package manager chosen in Step 2b (e.g. `uv sync`, `uv run pytest`, `pnpm install`, `pnpm dev`).
+
+Use this structure:
 
   # Project: [name]
 
@@ -107,12 +114,18 @@ Report which agents are present and which are missing.
 
 ## Step 6 — Write .claude/rules/code-style.md
 
-Infer conventions from detected linter config (.eslintrc, .prettierrc, ruff, etc.).
-Write sensible defaults for the detected stack if none found.
+**Source of truth**: if the stack dictionary from Step 2b picked a linter/formatter, emit a config block for it:
+- ruff → a `[tool.ruff]` block with `target-version` matching the chosen Python version, `line-length = 120`, and `[tool.ruff.lint] select = ["E", "F", "I", "W"]`
+- Biome → a `biome.json` stanza with `"formatter": { "enabled": true }` and recommended lint rules
+- ESLint + Prettier → an `.eslintrc.json` / `.prettierrc` pair with TypeScript + import-order defaults
+- `gofmt` + `golangci-lint` → a minimal `.golangci.yml` with the `errcheck`, `govet`, `staticcheck`, `ineffassign` linters enabled
+- `clippy` + `rustfmt` → a `rustfmt.toml` with `edition = "2021"` and a one-line `clippy` invocation
+
+If no Step 2b dictionary exists (pre-existing repo), infer from detected linter config (`.eslintrc`, `.prettierrc`, `pyproject.toml [tool.ruff]`, etc.) or write sensible defaults for the detected stack.
 
 ## Step 7 — Write .claude/rules/testing.md
 
-Detect the test framework and write conventions to match.
+**Source of truth**: if the stack dictionary from Step 2b picked a test framework, use that — e.g., for Python + AWS, document `pytest` + `pytest-mock` + `moto` with an example fixture pattern; for TypeScript, document `vitest` (unit) + `playwright` (e2e). Otherwise detect the test framework from the repo and write conventions to match.
 
 ## Step 8 — Write .claude/commands/fix-issue.md
 
@@ -232,7 +245,7 @@ Check if `.gitignore` exists. If not, create one. Always include:
   .DS_Store
   Thumbs.db
 
-Add stack-specific entries for the detected stack (coverage/, .pytest_cache/, etc.).
+Add stack-specific entries based on the Step 2b dictionary if present; otherwise the detected stack. Examples: Python → `.pytest_cache/`, `.ruff_cache/`, `.venv/`, `coverage/`; TypeScript → `.next/`, `.turbo/`, `.pnpm-store/`; AWS CDK → `cdk.out/`, `cdk.context.json`; Go → `bin/`, `*.test`; Rust → `target/`.
 
 ### 12d — Create GitHub repository
 
