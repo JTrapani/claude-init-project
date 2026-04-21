@@ -18,11 +18,54 @@ Check if any `mcp__context7__` tools appear in the `<available-deferred-tools>` 
 ## Step 2 — Gather context
 
 Before creating any files, read the following if they exist:
-- `package.json` or `pyproject.toml` or `Cargo.toml` (detect stack)
+- `package.json` or `pyproject.toml` or `Cargo.toml` or `go.mod` or `Gemfile` (detect stack)
 - `README.md` (understand project purpose)
 - Any existing `CLAUDE.md` (avoid overwriting existing work)
 
 If `.claude/CLAUDE.md` already has substantial content, ask whether to overwrite or skip.
+
+### 2a — Classify the repo
+
+Treat the repo as **brand new** if ALL of these are true:
+- No manifest file (package.json, pyproject.toml, Cargo.toml, go.mod, Gemfile, etc.)
+- No source files beyond meta files (README.md, LICENSE, .gitignore, .git/)
+- No substantial `.claude/CLAUDE.md`
+
+If the repo is **not brand new**: record the detected stack and skip to Step 3.
+If the repo **is brand new**: proceed to 2b.
+
+### 2b — Tech-stack interview (brand-new repos only)
+
+Use the `AskUserQuestion` tool to walk through the questions below one at a time. Every question MUST include a **"Not sure — recommend one"** option. When the user picks that option, give ONE opinionated recommendation that is consistent with prior answers plus a one-sentence rationale, then confirm before moving on.
+
+**Default bias** for recommendations (match what the operator already uses elsewhere):
+- Backend / services: Python 3.13 + uv + ruff + pytest, AWS Lambda via CDK, Postgres or DynamoDB, PyJWT
+- Agents / ML: Strands Agents + Bedrock AgentCore on Lambda, moto for AWS test doubles
+- Frontend / web UI: Next.js (App Router) + Tailwind + shadcn/ui, deployed on Vercel
+
+Ask in this order, skipping any question made irrelevant by earlier answers:
+
+1. **Project purpose** — web app, backend API / service, CLI tool, library / SDK, data pipeline, agent / ML project, mobile, other.
+2. **Primary language** — Python (default), TypeScript, Go, Rust, other, not sure.
+3. **Framework** — tailored options:
+   - Python web / API → FastAPI (default), Django, Flask, none
+   - Python agent / ML → Strands Agents + Bedrock AgentCore (default), LangChain, raw boto3
+   - Python CLI → Typer (default), Click, argparse
+   - TypeScript web → Next.js App Router (default), Remix, SvelteKit, Astro
+   - TypeScript server (Node runtime for APIs / workers) → Hono (default), Express, Fastify, NestJS
+4. **UI styling** (only if there's a UI) — Tailwind + shadcn/ui (default), Tailwind only, CSS Modules, none.
+5. **Database** — Postgres (default), DynamoDB, SQLite, MySQL, MongoDB, none yet, not sure.
+6. **Auth** — PyJWT / custom JWT (default for Python backends), Auth.js / NextAuth (default for Next.js), Clerk, Cognito, Auth0, none yet, not sure.
+7. **Testing** — tailored to language: Python → pytest + pytest-mock + moto (default; moto if AWS is in play). TS → Vitest + Playwright. Go → stdlib `testing`. Rust → `cargo test`.
+8. **Linter / formatter** — Python → ruff (default, handles lint + format; target the chosen Python version, line-length 120, rules `E,F,I,W`). TS → Biome (default) or ESLint + Prettier. Go → `gofmt` + `golangci-lint`. Rust → `clippy` + `rustfmt`.
+9. **Package manager** — Python → uv (default). TS → pnpm (default), npm, yarn, bun.
+10. **Hosting / deployment** — AWS Lambda via CDK (default for Python services / agents), Vercel (default for Next.js), Fly.io, Render, Railway, ECS / Fargate, self-hosted, not sure.
+
+Record every answer in a stack dictionary keyed by category. These answers drive Step 4 (`## Stack`), Step 6 (code-style — e.g. emit a `[tool.ruff]` block for Python), Step 7 (testing), and Step 12c (`.gitignore`).
+
+### 2c — Confirm the stack
+
+Summarise the resolved stack in a short block and ask the user to confirm before any files are created. If they pick "edit", loop back to the specific question(s) they want to change. Only move to Step 3 after explicit confirmation.
 
 ## Step 3 — Create directory structure
 
