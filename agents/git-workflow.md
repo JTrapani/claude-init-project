@@ -76,8 +76,24 @@ Execute the matching phase below.
 - For each unresolved comment:
   - Valid: fix code, commit, push, reply inline with commit SHA
   - Invalid: reply inline with reasoning
-- Resolve all threads via GraphQL API
-- Report: fixes made, comments refuted, threads resolved
+- **Resolve every addressed thread via the GraphQL `resolveReviewThread` mutation.** A text comment like `@coderabbitai resolve` is NOT a resolution — it's just a request. The thread stays open in GitHub's review UI until you call the mutation. Use:
+
+  ```bash
+  # 1. List unresolved thread IDs
+  gh api graphql -f query='
+  { repository(owner: "<owner>", name: "<repo>") {
+      pullRequest(number: <num>) {
+        reviewThreads(first: 50) {
+          nodes { id isResolved path line comments(first:1) { nodes { body } } }
+  } } } }' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | {id, path, line}'
+
+  # 2. Resolve each addressed thread
+  gh api graphql -f query='
+  mutation { resolveReviewThread(input: {threadId: "<PRRT_xxx>"}) { thread { isResolved } } }'
+  ```
+
+  CodeRabbit auto-resolves a thread when its inline suggestion was applied verbatim, but for any *other* fix path (different approach, refute, defer) you must call the mutation yourself.
+- Report: fixes made, comments refuted, threads resolved (count + IDs)
 
 ## Phase 6: Ready to Merge (PR open, all threads resolved)
 
