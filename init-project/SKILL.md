@@ -127,6 +127,34 @@ If no Step 2b dictionary exists (pre-existing repo), infer from detected linter 
 
 **Source of truth**: if the stack dictionary from Step 2b picked a test framework, use that — e.g., for Python + AWS, document `pytest` + `pytest-mock` + `moto` with an example fixture pattern; for TypeScript, document `vitest` (unit) + `playwright` (e2e). Otherwise detect the test framework from the repo and write conventions to match.
 
+## Step 7b — Write .claude/rules/no-ticket-refs-in-code.md
+
+Stack-agnostic — write this rule verbatim for every project:
+
+  # No Ticket Numbers or Commit/PR References in Code Comments or Docstrings
+
+  **Never** put any of these in source — comments, docstrings, module headers, inline notes:
+  - Ticket IDs — `JIRA-1234`, any `PROJ-NNN` work-item reference
+  - Git commit SHAs — "fixed in abc1234", "see commit deadbeef"
+  - GitHub PR / issue references — "PR #171", "#642", "addresses GH-12"
+
+  **Why:** A comment explains what the *current* code does, for a reader who has only the code
+  in front of them. A ticket ID or commit SHA is meaningless to that reader — it points at a
+  system they may not have open, ages instantly, and turns into archaeology. The change
+  *history* (driving ticket, shipping PR, what the old code did) belongs in the commit message,
+  the PR description, and the ticket — not embedded in source that outlives its relevance.
+
+  **Instead:** state the behavior or constraint directly. Put ticket / PR / commit linkage in
+  the commit message and PR body. Durable external refs (RFC numbers, CVE IDs, vendor doc URLs)
+  are fine — they're stable and not internal work-tracking.
+
+  **Applies to:** all committed source — application code, tests, fixtures, config, IaC — and the
+  same principle covers docs/README headers and user-facing strings. Also binds anything written
+  by Claude or the `git-workflow` / `doc-generator` agents.
+
+  **Forward-only:** don't sweep the repo to strip existing refs — just stop adding new ones, and
+  remove any you touch while editing nearby code.
+
 ## Step 8 — Write .claude/commands/fix-issue.md
 
   ---
@@ -282,6 +310,7 @@ Output a clean summary:
     - .claude/CLAUDE.md        (project context + workflow rules)
     - .claude/rules/code-style.md
     - .claude/rules/testing.md
+    - .claude/rules/no-ticket-refs-in-code.md
     - .claude/commands/fix-issue.md
     - .claude/settings.json
     - tasks/todo.md
