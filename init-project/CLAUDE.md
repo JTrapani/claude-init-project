@@ -60,3 +60,9 @@
   - No Laziness: Find root causes. No temporary fixes. Senior developer standards.
   - Minimal Impact: Changes should only touch what's necessary. Avoid introducing bugs.
   - Always use Context7 for SDK/library API documentation. For cloud provider workflows, IAM, and security practices, cross-check with a web search against official docs — Context7 may have stale information.
+
+  ## Comment Hygiene
+  - Never put ticket numbers (JIRA-1234, any PROJ-NNN), git commit SHAs, or GitHub PR/issue references (#171, "fixed in abc1234") in code comments, docstrings, module headers, docs, or user-facing strings. See `.claude/rules/no-ticket-refs-in-code.md`.
+  - A comment explains what the *current* code does for a reader who only has the code; a ticket or SHA is meaningless to them, ages instantly, and becomes archaeology.
+  - The change history — driving ticket, shipping PR, what the old code did — belongs in the commit message and PR body, never the source. State the behavior or constraint directly instead.
+  - Durable external refs (RFC numbers, CVE IDs, vendor doc URLs) are fine. Forward-only: don't strip existing refs wholesale — just stop adding new ones.
