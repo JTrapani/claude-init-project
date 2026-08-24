@@ -28,18 +28,18 @@ Note: Still review Claude generated PR's.
 
 3. Launch a sonnet agent to view the pull request and return a summary of the changes
 
-4. Launch 5 agents in parallel to independently review the changes. Each agent should return the list of issues, where each issue includes a description and the reason it was flagged (e.g. "CLAUDE.md adherence", "bug", "security"). The agents should do the following:
+4. Launch 6 agents in parallel to independently review the changes. Each agent should return the list of issues, where each issue includes a description and the reason it was flagged (e.g. "CLAUDE.md adherence", "bug", "security"). The agents should do the following:
 
    Agents 1 + 2: CLAUDE.md compliance sonnet agents
    Audit changes for CLAUDE.md compliance in parallel. Note: When evaluating CLAUDE.md compliance for a file, you should only consider CLAUDE.md files that share a file path with the file or parents.
 
-   Agent 3: Opus bug agent (parallel with agents 4 and 5)
+   Agent 3: Opus bug agent (parallel with agents 4, 5 and 6)
    Scan for obvious bugs. Focus only on the diff itself without reading extra context. Flag only significant bugs; ignore nitpicks and likely false positives. Do not flag issues that you cannot validate without looking at context outside of the git diff.
 
-   Agent 4: Opus bug agent (parallel with agents 3 and 5)
+   Agent 4: Opus bug agent (parallel with agents 3, 5 and 6)
    Look for problems that exist in the introduced code. This could be incorrect logic, race conditions, unhandled edge cases, etc. Only look for issues that fall within the changed code.
 
-   Agent 5: Opus security agent (parallel with agents 3 and 4)
+   Agent 5: Opus security agent (parallel with agents 3, 4 and 6)
    Dedicated security review of the introduced code. Look for:
    - Injection vulnerabilities (SQL, command, XSS, template)
    - Authentication and authorization flaws
@@ -51,6 +51,23 @@ Note: Still review Claude generated PR's.
    - Dependency vulnerabilities or unsafe imports
    Only flag issues present in the changed code. Do not flag pre-existing issues.
 
+   Agent 6: Sonnet comment agent (parallel with agents 3, 4 and 5)
+   Review every comment and docstring the diff adds or modifies. A comment states what
+   the code does, or what constrains it. Flag anything that instead:
+   - Explains the author's reasoning — why this approach, what was considered, what it
+     buys, what it avoids
+   - Narrates history — what the code used to do, what it replaced, what moved where.
+     This is stale the moment the PR merges
+   - Restates what the code already says
+   - Carries a ticket ID, commit SHA, or PR/issue reference
+
+   Quote the offending text and give the one-line replacement, or say to delete it.
+
+   **Length is never the finding.** A multi-line comment earning its space — a non-obvious
+   invariant, a protocol quirk, an ordering requirement, a vendor API's undocumented
+   behavior — is correct and must not be flagged. Judge the content, not the line count.
+   Do not flag comments the diff only moved without editing.
+
    **CRITICAL: We only want HIGH SIGNAL issues.** Flag issues where:
    - The code will fail to compile or parse (syntax errors, type errors, missing imports, unresolved references)
    - The code will definitely produce wrong results regardless of inputs (clear logic errors)
@@ -58,7 +75,7 @@ Note: Still review Claude generated PR's.
    - Concrete security vulnerabilities with a plausible attack vector
 
    Do NOT flag:
-   - Code style or quality concerns
+   - Code style or quality concerns (comment content is Agent 6's remit, not style)
    - Potential issues that depend on specific inputs or state
    - Subjective suggestions or improvements
    - Theoretical security concerns without a realistic exploit path
@@ -67,13 +84,13 @@ Note: Still review Claude generated PR's.
 
    In addition to the above, each subagent should be told the PR title and description. This will help provide context regarding the author's intent.
 
-5. For each issue found in the previous step by agents 3, 4, and 5, launch parallel subagents to validate the issue. These subagents should get the PR title and description along with a description of the issue. The agent's job is to review the issue to validate that the stated issue is truly an issue with high confidence. For example, if an issue such as "variable is not defined" was flagged, the subagent's job would be to validate that is actually true in the code. Another example would be CLAUDE.md issues. The agent should validate that the CLAUDE.md rule that was violated is scoped for this file and is actually violated. Use Opus subagents for bugs, security, and logic issues, and sonnet agents for CLAUDE.md violations.
+5. For each issue found in the previous step by agents 3, 4, 5, and 6, launch parallel subagents to validate the issue. These subagents should get the PR title and description along with a description of the issue. The agent's job is to review the issue to validate that the stated issue is truly an issue with high confidence. For example, if an issue such as "variable is not defined" was flagged, the subagent's job would be to validate that is actually true in the code. Another example would be CLAUDE.md issues. The agent should validate that the CLAUDE.md rule that was violated is scoped for this file and is actually violated. Use Opus subagents for bugs, security, and logic issues, and sonnet agents for CLAUDE.md and comment violations. For a comment finding, validate that the quoted text is actually present in the diff as an addition or edit, and that it states rationale or history rather than a constraint the reader needs.
 
 6. Filter out any issues that were not validated in step 5. This step will give us our list of high signal issues for our review.
 
 7. Output a summary of the review findings to the terminal:
    - If issues were found, list each issue with a brief description.
-   - If no issues were found, state: "No issues found. Checked for bugs, security, and CLAUDE.md compliance."
+   - If no issues were found, state: "No issues found. Checked for bugs, security, comment hygiene, and CLAUDE.md compliance."
 
    If `--comment` argument was NOT provided, stop here. Do not post any GitHub comments.
 
@@ -111,7 +128,7 @@ Notes:
 
 ## Code review
 
-No issues found. Checked for bugs, security, and CLAUDE.md compliance.
+No issues found. Checked for bugs, security, comment hygiene, and CLAUDE.md compliance.
 
 ---
 
