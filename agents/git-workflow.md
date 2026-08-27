@@ -1,5 +1,6 @@
 ---
 name: git-workflow
+version: 1
 description: Contextual git workflow agent. Detects current state (branch, commits, PR, comments) and executes the next step in the development lifecycle.
 model: opus
 allowed-tools: Agent, Task, Read, Grep, Glob, Bash(git *), Bash(gh *), Bash(uv run pytest*), Bash(uv run ruff*)
@@ -54,7 +55,17 @@ Execute the matching phase below.
 
 - Ask for the Linear ticket ID if not provided
 - Create branch: `git checkout -b <type>/<TRA-XXX>-<short-name> main`
-- Types: `feat/`, `fix/`, `hotfix/`, `refactor/`
+- Types: `feat/`, `fix/`, `hotfix/`, `refactor/`, `docs/`, `chore/`
+- **The branch name starts with a type. Never a person's name.** No username, no initials — on a
+  small team every branch belongs to the same person, so the prefix says nothing and pushes the
+  ticket id and change type to the right. Two traps:
+  - **The tracker's suggested branch name is not the convention** — Linear's `gitBranchName`
+    emits a username-prefixed name. Read the ticket for its *id*, and write the name yourself.
+  - **Older branches in a repo may carry an older pattern.** Do not infer the convention by
+    grepping `git branch`; it is the line above.
+- `<short-name>` is 2–4 words describing the change, not the ticket title verbatim.
+- Renaming a branch after its PR exists means closing and recreating the PR — GitHub cannot
+  repoint a PR's head. Read the name back before creating it.
 - **Transition the Linear ticket to `In Progress`** (see Core Rules)
 
 ## Phase 2: Commit (on branch, dirty working tree)
@@ -69,9 +80,17 @@ Execute the matching phase below.
 
 ## Phase 3: Internal Review (on branch, clean, pushed, no PR)
 
-1. **You MUST dispatch the `code-reviewer` subagent via the `Agent` tool** — do NOT self-review. Pass it the goal, context, and the exact command `git diff main...HEAD` (local only, no `--comment` flag). If the `Agent` tool is unavailable in this session, STOP and report the failure to the operator — do not substitute a self-review. If the `Agent` tool is unavailable **or** the `code-reviewer` subagent is not registered, STOP and report. Under no circumstance perform the review yourself, in this context or any sub-context. "Self-review" includes: reading the diff and producing findings in this agent, running a second pass of your own reasoning, or delegating to any agent other than `code-reviewer`. Do not read the diff yourself before dispatch. Pass only the command string (`git diff main...HEAD`) to the subagent so its findings are not anchored by your prior reading.
-2. Your Phase 3 report MUST begin with the first 200 characters of the `code-reviewer` subagent's returned summary, verbatim, inside a fenced block labeled `code-reviewer summary (verbatim)`. This content cannot be produced without actually dispatching the subagent. If you cannot produce that block, Phase 3 is not complete.
-3. For each finding from the subagent:
+**`code-reviewer` runs in the MAIN loop, not here.** A subagent spawning a subagent is denied at
+the permission gate: the dispatch fails silently, retries, and burns wall-clock producing nothing.
+You cannot run it, and you must not try.
+
+1. **Expect the review findings to be handed to you in your prompt.** The main loop runs
+   `code-reviewer` against `git diff main...HEAD`, acts on the findings, and passes you the
+   outcome. Do NOT dispatch any subagent — not `code-reviewer`, not any other.
+2. If no findings were provided and none are described as already handled, **STOP and tell the
+   operator the review is missing** so the main loop can run it. Do not self-review, and do not
+   proceed to a PR without one.
+3. For each finding handed to you:
    - Valid: fix, commit, push
    - Invalid: note why it's not being changed
 4. Report: review summary and what was addressed

@@ -1,5 +1,6 @@
 ---
 name: code-reviewer
+version: 1
 description: Review code changes as a senior/staff engineer. Provides thorough code review feedback.
 allowed-tools: Bash(gh issue view:*), Bash(gh search:*), Bash(gh issue list:*), Bash(gh pr comment:*), Bash(gh pr diff:*), Bash(gh pr view:*), Bash(gh pr list:*), mcp__github_inline_comment__create_inline_comment
 ---

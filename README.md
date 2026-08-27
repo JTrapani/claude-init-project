@@ -16,6 +16,8 @@ Type `/init-project` in any new Claude Code project and Claude will:
    - `.claude/CLAUDE.md` — project context, conventions, and workflow rules tailored to your stack
    - `.claude/rules/code-style.md` — coding standards inferred from your linter config
    - `.claude/rules/testing.md` — test conventions for your detected framework
+   - `.claude/rules/no-ticket-refs-in-code.md` — no ticket / PR / commit refs in comments
+   - `.claude/rules/no-sensitive-data-in-logs.md` — never log PII, financial data, secrets, or credentials
    - `.claude/commands/fix-issue.md` — end-to-end GitHub issue resolution command
    - `.claude/settings.json` — auto-memory enabled, `.env` and secrets protected
 4. **Create task management files:**
@@ -23,6 +25,29 @@ Type `/init-project` in any new Claude Code project and Claude will:
    - `tasks/lessons.md` — Claude logs corrections here; reviewed at every session start
 5. **Verify global subagents** — checks `~/.claude/agents/` and installs any missing agents (see [Subagents](#subagents) below)
 6. **Optionally initialise a private GitHub repo** — creates the repo, stages, commits, and pushes the initial structure
+
+---
+
+## Re-running on an existing project (delta-aware upgrades)
+
+`/init-project` is safe to re-run. It is **delta-aware**: the managed files it ships each carry a
+version, and on a re-run it acts per file rather than regenerating everything.
+
+- **Missing files** (e.g. a rule added in a newer release) are **created**.
+- **Up-to-date files** are left alone.
+- **Behind-version files** are shown as a **diff**, and you're asked before anything is replaced —
+  so hand-edits are never silently overwritten.
+
+Managed, versioned artifacts: the stack-agnostic rules (`no-ticket-refs-in-code.md`,
+`no-sensitive-data-in-logs.md`), the workflow block inside `.claude/CLAUDE.md` (delimited by
+`<!-- init-project:workflow vN -->` markers), each rule's `CLAUDE.md` summary section,
+`commands/fix-issue.md`, `settings.json`, and the global subagents. Per-project files that depend on
+your stack — the `CLAUDE.md` Stack/Conventions/Commands sections, `rules/code-style.md`,
+`rules/testing.md`, `tasks/*.md`, and `.gitignore` — are create-once and left untouched on re-runs.
+
+This is how new rules reach projects you initialised months ago: pull the update, run `./install.sh`,
+then `/init-project` in the project — the new rule file and its `CLAUDE.md` section are added, and
+nothing you customised is touched without a prompt.
 
 ---
 
@@ -45,7 +70,7 @@ cd claude-init-project
 
 `install.sh` copies the `init-project` skill into `~/.claude/skills/` and every agent in `agents/*.md` into `~/.claude/agents/`. Re-run it after any `git pull` that updates `agents/` or `init-project/` — Claude Code loads from the `~/.claude/` copies at runtime, so merging the repo alone does not propagate changes to active sessions.
 
-> **Note:** The skill and agents are user-level. They must live in `~/.claude/skills/` and `~/.claude/agents/`, not inside a project repo — because they run before any `.claude/` structure exists. The script **replaces** `~/.claude/skills/init-project/` wholesale (any hand-edits inside that directory are lost) and **overwrites** matching `~/.claude/agents/*.md` files individually (unrelated agent files in `~/.claude/agents/` are left untouched). Fork the repo if you maintain local customisations.
+> **Note:** The skill and agents are user-level. They must live in `~/.claude/skills/` and `~/.claude/agents/`, not inside a project repo — because they run before any `.claude/` structure exists. The script **replaces** `~/.claude/skills/init-project/` wholesale (any hand-edits inside that directory are lost). Agents are **version-aware**: each agent carries a `version:` in its frontmatter, and the script installs any that are missing, skips any already up-to-date, and for any that are behind shows a diff and asks before replacing — so a customised agent is never silently overwritten. Fork the repo if you maintain local customisations you don't want to be prompted about.
 >
 > The `init-project/` directory includes `CLAUDE.md` as a supporting file — it contains the workflow rules that get written into each new project's `.claude/CLAUDE.md`. Edit it to customise the rules for your workflow.
 
