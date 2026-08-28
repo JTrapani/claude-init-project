@@ -66,7 +66,8 @@ Note: Still review Claude generated PR's.
    **Length is never the finding.** A multi-line comment earning its space — a non-obvious
    invariant, a protocol quirk, an ordering requirement, a vendor API's undocumented
    behavior — is correct and must not be flagged. Judge the content, not the line count.
-   Do not flag comments the diff only moved without editing.
+   Moved comments are in scope: when the diff relocates a comment, judge its content the
+   same as an addition — a move is the moment to trim it.
 
    **CRITICAL: We only want HIGH SIGNAL issues.** Flag issues where:
    - The code will fail to compile or parse (syntax errors, type errors, missing imports, unresolved references)
