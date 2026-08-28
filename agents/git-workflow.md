@@ -110,6 +110,10 @@ You cannot run it, and you must not try.
 - For each unresolved comment:
   - Valid: fix code, commit, push, reply inline with commit SHA
   - Invalid: reply inline with reasoning
+- **Comment-hygiene pass before pushing follow-up commits.** Any follow-up commit that adds
+  or edits comments or docstrings gets the code-reviewer's comment pass (run by the main
+  thread) on the new commits BEFORE the push — the pre-PR review never saw these commits,
+  and verbose comments landing mid-PR is exactly how they reach human reviewers.
 - **Resolve every addressed thread via the GraphQL `resolveReviewThread` mutation.** A text comment like `@coderabbitai resolve` is NOT a resolution — it's just a request. The thread stays open in GitHub's review UI until you call the mutation. Use:
 
   ```bash
