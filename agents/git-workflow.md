@@ -99,7 +99,17 @@ You cannot run it, and you must not try.
 ## Phase 4: Open PR (operator approved, no PR exists)
 
 - `gh pr create --title "<title> (TRA-XXX)" --body "<body>"`
-- Body: Summary bullets, Test plan checklist, Linear ticket link
+- **Write the body for a busy human reviewer — concise and skimmable, not a changelog.** Include
+  only what a reviewer needs; link out (ticket, docs) rather than transcribe. Prefer bullets over
+  prose, and keep the whole thing scannable in roughly 30 seconds — push deep detail into the ticket
+  or a collapsible `<details>` block, not the top-level body. Structure:
+  - **What & why** — 2–5 bullets: what changed and the reason. Not a file-by-file recitation.
+  - **How to review** (required) — a guided path through the change: where to start, the 1–3 files
+    that carry the core logic and what to look for in each, what is mechanical and skippable
+    (renames, generated code, version bumps), and any specific risk or decision you want a second
+    opinion on. Order it the way you'd walk a colleague through it.
+  - **How to verify** — the commands or steps to exercise it locally (tests, a script, a manual check).
+  - **Notes** — out-of-band context only: deliberate omissions, follow-ups, links.
 - **Transition the Linear ticket to `In Review`** (see Core Rules)
 - Report: PR URL
 - Note: CodeRabbit will review asynchronously. Run `/git` again later to address comments.

@@ -38,6 +38,22 @@ CLAUDE.md **sections** follow the same rule at section granularity: if the marke
 absent, append it; if present but behind, diff+confirm and replace only what's between the markers;
 never touch the user's other CLAUDE.md content.
 
+### Migrating from a pre-versioning install (untagged files)
+
+Many projects and agents were scaffolded by an earlier version of this skill that wrote **no version
+stamps**. A missing stamp reads as **v0 (behind)** — but do NOT alarm the user with a diff+confirm
+for a file that differs *only* by lacking its tag. There are people on the current, untagged version
+already; their first upgrade should be quiet, not a wall of prompts.
+
+- **Unstamped managed file (v0) with matching content:** compare the on-disk file to the shipped
+  current version *ignoring the `version:` line*. If they are identical apart from the missing stamp,
+  **add the stamp silently** and report `migrated (stamped vN)` — no diff, no prompt. Fall through to
+  the normal diff+confirm only when the content genuinely differs (the user edited it).
+- **Legacy unmarked CLAUDE.md workflow block:** handled in Step 4 — detect and migrate it in place;
+  never append a duplicate.
+
+(`install.sh` applies the same guard to the global subagents.)
+
 ## Step 1 — Check Context7 MCP
 
 Check if any `mcp__context7__` tools appear in the `<available-deferred-tools>` list at the start of the conversation. This list is always present and reflects the actual MCP connections for the current session.
@@ -140,11 +156,20 @@ marker comments so re-runs can upgrade just this block, after the project-specif
   [full contents of this skill's CLAUDE.md]
   <!-- /init-project:workflow -->
 
-Delta behavior for the workflow block (per "Managed artifacts & versioning"): if the
-`init-project:workflow` markers are **absent** from an existing `.claude/CLAUDE.md`, append the
-block; if **present but behind** the shipped version, diff+confirm and replace only what's between
-the markers; if **current**, leave it. Do not disturb the Stack / Key Conventions / Common Commands
-sections either way.
+Delta behavior for the workflow block (per "Managed artifacts & versioning"):
+- If the `init-project:workflow` markers are **present and current**, leave it.
+- If **present but behind**, diff+confirm and replace only what's between the markers.
+- If the markers are **absent**, first run the **migration guard**: check whether a legacy
+  UNMARKED copy of the doctrine already exists — detect it by its headers (`## Workflow
+  Orchestration`, `## Task Management`, `## Git Workflow`, `## Core Principles`). If a legacy block
+  is found, do **NOT** append a second copy:
+  - If its content matches the current shipped block, just **wrap it in the markers in place**
+    (silent migration).
+  - If it differs, show a diff and, on confirm, replace it in place wrapped in markers; on decline,
+    still wrap the existing block in the markers so the next run recognizes it and won't re-prompt.
+  Only when **no** workflow block exists at all (marked or unmarked) do you append a fresh one.
+
+Do not disturb the Stack / Key Conventions / Common Commands sections either way.
 
 ## Step 5 — Verify global subagents (managed, versioned)
 
