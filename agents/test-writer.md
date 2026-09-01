@@ -1,5 +1,6 @@
 ---
 name: test-writer
+version: 1
 description: Write comprehensive tests for code changes. Creates unit tests, integration tests, and edge case coverage.
 model: opus
 allowed-tools: Read, Write, Grep, Glob, Bash(pytest*), Bash(uv run pytest*), Bash(ruff*), Bash(uv run ruff*), Bash(npm test*), Bash(npx jest*)

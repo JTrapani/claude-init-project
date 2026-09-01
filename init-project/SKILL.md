@@ -6,6 +6,54 @@ description: Scaffold the full .claude/ and tasks/ structure for a new project. 
 You are setting up the standard Claude Code project structure for this repository.
 Follow these steps exactly.
 
+## Managed artifacts & versioning (read before any "Write" step)
+
+This skill is **delta-aware**: re-running it on an already-initialized project adds what's
+missing and upgrades what's behind, **without overwriting your customizations**. This applies to
+every file marked *(managed, vN)* in the steps below — the stack-agnostic rules, the managed
+CLAUDE.md sections, `fix-issue.md`, `settings.json`, and the global subagents. Interview-driven,
+per-project files (CLAUDE.md Stack/Conventions/Commands, the code-style linter block,
+`testing.md`, `.gitignore`) are **not** versioned — they stay create-if-missing / ask-before-overwrite.
+
+Each managed artifact self-reports its version — there is no separate manifest:
+- rule / agent Markdown → a `version:` key in YAML frontmatter
+- `settings.json` → a top-level `"_initProjectVersion"` key
+- a managed CLAUDE.md section → the version in its marker comment, e.g.
+  `<!-- init-project:rule:no-sensitive-data-in-logs v1 -->`
+
+The **current** version is the number written in the step below (what this skill ships). The
+**installed** version is what you read from the file on disk. A file (or marked section) with **no**
+parseable version counts as **v0** (behind).
+
+For every managed artifact, act per file:
+
+| On disk | Action |
+|---|---|
+| absent | write it at the current version — report **CREATED** |
+| installed version == current | leave it untouched — report **up-to-date** |
+| installed version < current | show a diff of on-disk vs the shipped version, then ask `Replace <file>? [y/N]`. On **y**: overwrite — report **UPDATED vX→vY**. On **N**: leave it — report **kept (your choice)** |
+
+Never overwrite a managed file that is behind without showing the diff and getting a `y`. Managed
+CLAUDE.md **sections** follow the same rule at section granularity: if the marked section is
+absent, append it; if present but behind, diff+confirm and replace only what's between the markers;
+never touch the user's other CLAUDE.md content.
+
+### Migrating from a pre-versioning install (untagged files)
+
+Many projects and agents were scaffolded by an earlier version of this skill that wrote **no version
+stamps**. A missing stamp reads as **v0 (behind)** — but do NOT alarm the user with a diff+confirm
+for a file that differs *only* by lacking its tag. There are people on the current, untagged version
+already; their first upgrade should be quiet, not a wall of prompts.
+
+- **Unstamped managed file (v0) with matching content:** compare the on-disk file to the shipped
+  current version *ignoring the `version:` line*. If they are identical apart from the missing stamp,
+  **add the stamp silently** and report `migrated (stamped vN)` — no diff, no prompt. Fall through to
+  the normal diff+confirm only when the content genuinely differs (the user edited it).
+- **Legacy unmarked CLAUDE.md workflow block:** handled in Step 4 — detect and migrate it in place;
+  never append a duplicate.
+
+(`install.sh` applies the same guard to the global subagents.)
+
 ## Step 1 — Check Context7 MCP
 
 Check if any `mcp__context7__` tools appear in the `<available-deferred-tools>` list at the start of the conversation. This list is always present and reflects the actual MCP connections for the current session.
@@ -22,7 +70,10 @@ Before creating any files, read the following if they exist:
 - `README.md` (understand project purpose)
 - Any existing `CLAUDE.md` (avoid overwriting existing work)
 
-If `.claude/CLAUDE.md` already has substantial content, ask whether to overwrite or skip.
+If `.claude/CLAUDE.md` already has substantial content, this is a **re-run on an already-initialized
+project** — do NOT ask to overwrite it wholesale. Proceed with the delta-aware behavior from
+"Managed artifacts & versioning": leave its per-project sections alone, and only add or upgrade the
+managed sections and files that are missing or behind.
 
 ### 2a — Classify the repo
 
@@ -93,24 +144,57 @@ Use this structure:
   ## Common Commands
   [actual detected dev/build/test/migrate commands]
 
-  Read the workflow rules from [CLAUDE.md](CLAUDE.md) (located in this skill's directory) and include the full contents of that file in the generated `.claude/CLAUDE.md`, after the project-specific sections (Stack, Key Conventions, Common Commands) written above.
+The Stack / Key Conventions / Common Commands sections are **per-project and create-once** — write
+them only when `.claude/CLAUDE.md` is absent (or the user explicitly asked to regenerate). On a
+re-run, never overwrite existing ones.
 
+Then add the workflow doctrine as a **managed section (v1)**. Read the workflow rules from
+[CLAUDE.md](CLAUDE.md) (located in this skill's directory) and embed their full contents wrapped in
+marker comments so re-runs can upgrade just this block, after the project-specific sections above:
 
+  <!-- init-project:workflow v1 -->
+  [full contents of this skill's CLAUDE.md]
+  <!-- /init-project:workflow -->
 
-## Step 5 — Verify global subagents
+Delta behavior for the workflow block (per "Managed artifacts & versioning"):
+- If the `init-project:workflow` markers are **present and current**, leave it.
+- If **present but behind**, diff+confirm and replace only what's between the markers.
+- If the markers are **absent**, first run the **migration guard**: check whether a legacy
+  UNMARKED copy of the doctrine already exists — detect it by its headers (`## Workflow
+  Orchestration`, `## Task Management`, `## Git Workflow`, `## Core Principles`). If a legacy block
+  is found, do **NOT** append a second copy:
+  - If its content matches the current shipped block, just **wrap it in the markers in place**
+    (silent migration).
+  - If it differs, show a diff and, on confirm, replace it in place wrapped in markers; on decline,
+    still wrap the existing block in the markers so the next run recognizes it and won't re-prompt.
+  Only when **no** workflow block exists at all (marked or unmarked) do you append a fresh one.
 
-Check if the following agents exist in `~/.claude/agents/`:
+Do not disturb the Stack / Key Conventions / Common Commands sections either way.
+
+## Step 5 — Verify global subagents (managed, versioned)
+
+The subagents are global (`~/.claude/agents/`) and versioned. Compare each installed agent against
+the shipped reference bundled with this skill at `~/.claude/skills/init-project/agents/<name>.md`,
+reading the `version:` frontmatter from both (missing/unparseable = v0):
+
 - `code-reviewer.md`
 - `git-workflow.md`
 - `doc-generator.md`
 - `test-writer.md`
 
-For each agent:
-- If present: report as "already installed" — do not overwrite (user may have customized)
-- If missing: warn the user and instruct them to install from the init-project repo:
-  `cp agents/*.md ~/.claude/agents/`
+For each agent, report its status:
+- **installed (vX)** and up-to-date — nothing to do
+- **absent** — not installed yet
+- **behind (vX < vY)** — a newer version ships with the skill
 
-Report which agents are present and which are missing.
+Do NOT write to `~/.claude/agents/` from inside this skill. If any agent is **absent** or
+**behind**, tell the user to update them by re-running the repo's installer, which shows a diff and
+asks before replacing any customized agent:
+
+  cd /path/to/claude-init-project && ./install.sh
+
+If the bundled reference directory `~/.claude/skills/init-project/agents/` is missing (skill was
+installed before bundling existed), tell the user to re-run `./install.sh` to refresh the skill.
 
 ## Step 6 — Write .claude/rules/code-style.md
 
@@ -123,13 +207,26 @@ Report which agents are present and which are missing.
 
 If no Step 2b dictionary exists (pre-existing repo), infer from detected linter config (`.eslintrc`, `.prettierrc`, `pyproject.toml [tool.ruff]`, etc.) or write sensible defaults for the detected stack.
 
+This file is **per-project, not versioned** — its content depends on the chosen stack. Write it only
+if absent; if it already exists, leave it (ask before overwriting).
+
 ## Step 7 — Write .claude/rules/testing.md
 
 **Source of truth**: if the stack dictionary from Step 2b picked a test framework, use that — e.g., for Python + AWS, document `pytest` + `pytest-mock` + `moto` with an example fixture pattern; for TypeScript, document `vitest` (unit) + `playwright` (e2e). Otherwise detect the test framework from the repo and write conventions to match.
 
-## Step 7b — Write .claude/rules/no-ticket-refs-in-code.md
+This file is **per-project, not versioned** — write it only if absent; if it already exists, leave
+it (ask before overwriting).
 
-Stack-agnostic — write this rule verbatim for every project:
+## Step 7b — Write .claude/rules/no-ticket-refs-in-code.md (managed, v1)
+
+Stack-agnostic managed rule — apply the versioning rules from "Managed artifacts & versioning"
+(create if absent; diff+confirm if the on-disk `version:` is behind 1). Write it verbatim:
+
+  ---
+  version: 1
+  name: no-ticket-refs-in-code
+  description: No ticket numbers or commit/PR references in code comments or docstrings.
+  ---
 
   # No Ticket Numbers or Commit/PR References in Code Comments or Docstrings
 
@@ -155,10 +252,75 @@ Stack-agnostic — write this rule verbatim for every project:
   **Forward-only:** don't sweep the repo to strip existing refs — just stop adding new ones, and
   remove any you touch while editing nearby code.
 
-## Step 8 — Write .claude/commands/fix-issue.md
+## Step 7c — Write .claude/rules/no-sensitive-data-in-logs.md (managed, v1)
+
+Stack-agnostic managed rule — apply the versioning rules from "Managed artifacts & versioning"
+(create if absent; diff+confirm if the on-disk `version:` is behind 1). Write it verbatim:
+
+  ---
+  version: 1
+  name: no-sensitive-data-in-logs
+  description: Never log PII, financial data, secrets, or credentials to any sink.
+  ---
+
+  # No PII, Financial Data, Secrets, or Credentials in Logs
+
+  **Never** log, print, or emit to any sink — stdout/stderr, log files, log aggregators
+  (CloudWatch, Datadog, Splunk), error/crash trackers (Sentry), traces, metrics labels/tags, or
+  analytics events — any of the following:
+
+  - **Secrets & credentials** — passwords, API keys, access/refresh/session/JWT tokens, private
+    keys, connection strings, OAuth client secrets, signing keys, and the values of
+    `Authorization`, `Cookie`, or `Set-Cookie` headers. Anything sourced from `.env` or a secrets
+    manager is a secret.
+  - **PII** — email, phone, postal address, a full name tied to an account, SSN / national ID,
+    date of birth, government IDs, precise geolocation, biometric data, and IP addresses where
+    they identify a person.
+  - **Financial data** — full card numbers (PAN), CVV/CVC, expiry, bank account / routing numbers,
+    IBAN, and per-person balances or transaction detail.
+
+  **Why:** Logs fan out and persist — to disk, to aggregators, to third-party trackers, and to
+  anyone with read access — long after the request is gone. A secret in a log is a leaked secret;
+  PII or financial data in a log is a compliance breach (PCI-DSS, GDPR, GLBA, SOC 2). You cannot
+  un-log it.
+
+  **Instead:**
+  - Log **identifiers, not contents** — a user ID, not the email; a token reference or card
+    last-4, not the value or PAN; a request ID, not the body.
+  - **Redact / mask before logging**, through one shared helper — don't hand-roll per call site.
+  - Log the **shape** of an error (type, code, which field failed validation), never the offending
+    value; keep secrets out of exception messages and stack traces.
+  - Beware **whole-object dumps** — `log.info(user)`, `JSON.stringify(req.body)`,
+    `console.log(config)`, `repr(self)` — the most common leak. Serialize an explicit allow-list of
+    safe fields instead.
+
+  **Applies to:** all committed source — application code, tests, fixtures, scripts, IaC, CI config
+  — and anything written by Claude or the subagents. When in doubt, treat the field as sensitive and
+  leave it out.
+
+  **Forward-only:** don't sweep the repo to scrub existing log lines — fix them as you touch the
+  surrounding code, and never add new ones.
+
+Then add the matching **managed CLAUDE.md section (v1)** to `.claude/CLAUDE.md` — append it if the
+markers are absent, diff+confirm if behind, per "Managed artifacts & versioning":
+
+  <!-- init-project:rule:no-sensitive-data-in-logs v1 -->
+  ## Logging Hygiene
+  - Never log PII, financial data, secrets, or credentials to any sink. See
+    `.claude/rules/no-sensitive-data-in-logs.md`.
+  - Log identifiers, not contents (user ID not email; card last-4 not PAN; request ID not body).
+  - Watch whole-object dumps (`log.info(user)`, `JSON.stringify(req.body)`) — the most common leak.
+  - Keep secrets out of exception messages / stack traces. When in doubt, omit it.
+  <!-- /init-project:rule:no-sensitive-data-in-logs -->
+
+## Step 8 — Write .claude/commands/fix-issue.md (managed, v1)
+
+Managed — apply the versioning rules from "Managed artifacts & versioning" (the version lives in the
+`version:` frontmatter key):
 
   ---
   name: fix-issue
+  version: 1
   description: Fix a GitHub issue end-to-end. Pass the issue number as an argument.
   disable-model-invocation: true
   ---
@@ -175,9 +337,14 @@ Stack-agnostic — write this rule verbatim for every project:
   9. Push and open a PR with a summary of what changed and why
   10. Update tasks/todo.md
 
-## Step 9 — Write .claude/settings.json
+## Step 9 — Write .claude/settings.json (managed, v1)
+
+Managed — apply the versioning rules from "Managed artifacts & versioning" (version lives in the
+`_initProjectVersion` key). Users commonly add their own permissions here, so a behind-version
+`settings.json` MUST show the diff and get a `y` before being replaced — never overwrite silently.
 
   {
+    "_initProjectVersion": 1,
     "autoMemoryEnabled": true,
     "permissions": {
       "deny": [
@@ -189,6 +356,9 @@ Stack-agnostic — write this rule verbatim for every project:
   }
 
 ## Step 10 — Write tasks/todo.md
+
+Per-project working file, **not versioned** — write it only if absent. If it already exists (the
+project has real tasks in it), leave it untouched.
 
   # Tasks
 
@@ -208,6 +378,9 @@ Stack-agnostic — write this rule verbatim for every project:
   _Added after completion: what was done, what was learned._
 
 ## Step 11 — Write tasks/lessons.md
+
+Per-project working file, **not versioned** — write it only if absent. If it already exists, leave
+it untouched (it is accumulated project intelligence).
 
   # Lessons Learned
 
@@ -304,26 +477,33 @@ After a successful push, print the repo URL from: gh repo view --json url -q .ur
 
 ## Step 13 — Confirm and summarise
 
-Output a clean summary:
+Output a clean summary. For each managed file, show its delta status from this run
+(CREATED / up-to-date / UPDATED vX→vY / kept):
 
-  ✅ .claude/ structure created:
-    - .claude/CLAUDE.md        (project context + workflow rules)
-    - .claude/rules/code-style.md
-    - .claude/rules/testing.md
-    - .claude/rules/no-ticket-refs-in-code.md
-    - .claude/commands/fix-issue.md
-    - .claude/settings.json
-    - tasks/todo.md
-    - tasks/lessons.md
+  ✅ .claude/ structure:
+    - .claude/CLAUDE.md                          (project context + workflow block [status])
+    - .claude/rules/code-style.md                [created / left as-is]
+    - .claude/rules/testing.md                   [created / left as-is]
+    - .claude/rules/no-ticket-refs-in-code.md    [status]
+    - .claude/rules/no-sensitive-data-in-logs.md [status]
+    - .claude/commands/fix-issue.md              [status]
+    - .claude/settings.json                      [status]
+    - tasks/todo.md                              [created / left as-is]
+    - tasks/lessons.md                           [created / left as-is]
 
-  🤖 Global subagents verified:
-    - ~/.claude/agents/code-reviewer.md   [installed/already present]
-    - ~/.claude/agents/git-workflow.md    [installed/already present]
-    - ~/.claude/agents/doc-generator.md   [installed/already present]
-    - ~/.claude/agents/test-writer.md     [installed/already present]
+  🤖 Global subagents (from ~/.claude/skills/init-project/agents/ reference):
+    - ~/.claude/agents/code-reviewer.md   [installed vX / absent / behind vX<vY]
+    - ~/.claude/agents/git-workflow.md    [installed vX / absent / behind vX<vY]
+    - ~/.claude/agents/doc-generator.md   [installed vX / absent / behind vX<vY]
+    - ~/.claude/agents/test-writer.md     [installed vX / absent / behind vX<vY]
 
   Stack detected: [what you found]
   Next: review .claude/CLAUDE.md and fill in any [bracketed placeholders]
+
+If any agents are absent or behind, add:
+
+  ↑ Some agents are absent or behind. Update them with:
+    cd /path/to/claude-init-project && ./install.sh
 
 If a GitHub repo was created and pushed, append:
 

@@ -1,5 +1,6 @@
 ---
 name: git-workflow
+version: 1
 description: Contextual git workflow agent. Detects current state (branch, commits, PR, comments) and executes the next step in the development lifecycle.
 model: opus
 allowed-tools: Agent, Task, Read, Grep, Glob, Bash(git *), Bash(gh *), Bash(uv run pytest*), Bash(uv run ruff*)
@@ -54,7 +55,17 @@ Execute the matching phase below.
 
 - Ask for the Linear ticket ID if not provided
 - Create branch: `git checkout -b <type>/<TRA-XXX>-<short-name> main`
-- Types: `feat/`, `fix/`, `hotfix/`, `refactor/`
+- Types: `feat/`, `fix/`, `hotfix/`, `refactor/`, `docs/`, `chore/`
+- **The branch name starts with a type. Never a person's name.** No username, no initials — on a
+  small team every branch belongs to the same person, so the prefix says nothing and pushes the
+  ticket id and change type to the right. Two traps:
+  - **The tracker's suggested branch name is not the convention** — Linear's `gitBranchName`
+    emits a username-prefixed name. Read the ticket for its *id*, and write the name yourself.
+  - **Older branches in a repo may carry an older pattern.** Do not infer the convention by
+    grepping `git branch`; it is the line above.
+- `<short-name>` is 2–4 words describing the change, not the ticket title verbatim.
+- Renaming a branch after its PR exists means closing and recreating the PR — GitHub cannot
+  repoint a PR's head. Read the name back before creating it.
 - **Transition the Linear ticket to `In Progress`** (see Core Rules)
 
 ## Phase 2: Commit (on branch, dirty working tree)
@@ -69,9 +80,17 @@ Execute the matching phase below.
 
 ## Phase 3: Internal Review (on branch, clean, pushed, no PR)
 
-1. **You MUST dispatch the `code-reviewer` subagent via the `Agent` tool** — do NOT self-review. Pass it the goal, context, and the exact command `git diff main...HEAD` (local only, no `--comment` flag). If the `Agent` tool is unavailable in this session, STOP and report the failure to the operator — do not substitute a self-review. If the `Agent` tool is unavailable **or** the `code-reviewer` subagent is not registered, STOP and report. Under no circumstance perform the review yourself, in this context or any sub-context. "Self-review" includes: reading the diff and producing findings in this agent, running a second pass of your own reasoning, or delegating to any agent other than `code-reviewer`. Do not read the diff yourself before dispatch. Pass only the command string (`git diff main...HEAD`) to the subagent so its findings are not anchored by your prior reading.
-2. Your Phase 3 report MUST begin with the first 200 characters of the `code-reviewer` subagent's returned summary, verbatim, inside a fenced block labeled `code-reviewer summary (verbatim)`. This content cannot be produced without actually dispatching the subagent. If you cannot produce that block, Phase 3 is not complete.
-3. For each finding from the subagent:
+**`code-reviewer` runs in the MAIN loop, not here.** A subagent spawning a subagent is denied at
+the permission gate: the dispatch fails silently, retries, and burns wall-clock producing nothing.
+You cannot run it, and you must not try.
+
+1. **Expect the review findings to be handed to you in your prompt.** The main loop runs
+   `code-reviewer` against `git diff main...HEAD`, acts on the findings, and passes you the
+   outcome. Do NOT dispatch any subagent — not `code-reviewer`, not any other.
+2. If no findings were provided and none are described as already handled, **STOP and tell the
+   operator the review is missing** so the main loop can run it. Do not self-review, and do not
+   proceed to a PR without one.
+3. For each finding handed to you:
    - Valid: fix, commit, push
    - Invalid: note why it's not being changed
 4. Report: review summary and what was addressed
@@ -80,7 +99,17 @@ Execute the matching phase below.
 ## Phase 4: Open PR (operator approved, no PR exists)
 
 - `gh pr create --title "<title> (TRA-XXX)" --body "<body>"`
-- Body: Summary bullets, Test plan checklist, Linear ticket link
+- **Write the body for a busy human reviewer — concise and skimmable, not a changelog.** Include
+  only what a reviewer needs; link out (ticket, docs) rather than transcribe. Prefer bullets over
+  prose, and keep the whole thing scannable in roughly 30 seconds — push deep detail into the ticket
+  or a collapsible `<details>` block, not the top-level body. Structure:
+  - **What & why** — 2–5 bullets: what changed and the reason. Not a file-by-file recitation.
+  - **How to review** (required) — a guided path through the change: where to start, the 1–3 files
+    that carry the core logic and what to look for in each, what is mechanical and skippable
+    (renames, generated code, version bumps), and any specific risk or decision you want a second
+    opinion on. Order it the way you'd walk a colleague through it.
+  - **How to verify** — the commands or steps to exercise it locally (tests, a script, a manual check).
+  - **Notes** — out-of-band context only: deliberate omissions, follow-ups, links.
 - **Transition the Linear ticket to `In Review`** (see Core Rules)
 - Report: PR URL
 - Note: CodeRabbit will review asynchronously. Run `/git` again later to address comments.
@@ -91,6 +120,10 @@ Execute the matching phase below.
 - For each unresolved comment:
   - Valid: fix code, commit, push, reply inline with commit SHA
   - Invalid: reply inline with reasoning
+- **Comment-hygiene pass before pushing follow-up commits.** Any follow-up commit that adds
+  or edits comments or docstrings gets the code-reviewer's comment pass (run by the main
+  thread) on the new commits BEFORE the push — the pre-PR review never saw these commits,
+  and verbose comments landing mid-PR is exactly how they reach human reviewers.
 - **Resolve every addressed thread via the GraphQL `resolveReviewThread` mutation.** A text comment like `@coderabbitai resolve` is NOT a resolution — it's just a request. The thread stays open in GitHub's review UI until you call the mutation. Use:
 
   ```bash

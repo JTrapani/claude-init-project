@@ -1,5 +1,6 @@
 ---
 name: doc-generator
+version: 1
 description: Generate documentation for code including docstrings, README files, and API documentation.
 model: sonnet
 allowed-tools: Read, Write, Grep, Glob
