@@ -1,0 +1,8 @@
+{
+  "CLAUDE.md": "f3fb4a169b66c550e19b1286aed585b592b3e038c6bccbaf05b6983dc4d56644",
+  "SKILL.md": "41be324d0044b5b8433ff5ad2b8eb60bc3af91afda51de11fba623672208841d",
+  "agents/code-reviewer.md": "14d4bde8ce702e11748bef2273b8029e1a9e78dbd2478a313f51c992972b7ad5",
+  "agents/doc-generator.md": "0507685da09498f604d4cccf141816ff51f6f80f6edc3b5fd750c99018a14619",
+  "agents/git-workflow.md": "630fea761512636ba6e2fba42952866ffd06c742ed35e58b77596f1faf22e1a8",
+  "agents/test-writer.md": "0c11f44a055f985055989a0ce47289790bba123e71674a17b60a00b89804618f"
+}

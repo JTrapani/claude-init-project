@@ -82,7 +82,7 @@ The first migration favors preserving content over forcing old repositories into
 
 Edit `init-project/assets/workflow.md` for shared doctrine and `init-project/assets/agents/*.md` for the four roles: `code-reviewer`, `git-workflow`, `doc-generator`, and `test-writer`. Both native formats derive from those definitions. Defaults inherit the client's model rather than hardcoding Claude or OpenAI model names.
 
-The original `agents/*.md` and legacy skill snapshot remain compatibility references for recognizing older installations; they are not the source for new default role behavior. Existing customized agents are never replaced just because their version stamp is old.
+Compact content hashes recognize older defaults without shipping historical instruction copies. Install manifests track managed files; customized agents are never replaced just because their version stamp is old.
 
 ## Permissions and compatibility
 

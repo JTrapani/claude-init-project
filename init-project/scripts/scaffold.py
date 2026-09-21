@@ -11,6 +11,7 @@ from pathlib import Path
 
 SKILL = Path(__file__).resolve().parent.parent
 ASSETS = SKILL / "assets"
+UPGRADE_HASHES = json.loads((ASSETS / "upgrade-hashes.json").read_text())
 MARKER = "<!-- init-project:shared-guidance -->"
 
 
@@ -226,24 +227,22 @@ def project(plan: Plan, root: Path) -> None:
         local_path = root / ".claude/agents" / source.name
         selected = plan.read(local_path)
         selected_path = local_path
-        defaults = {source.read_bytes(), claude.encode()}
-        for baseline in [
-            SKILL.parent / "agents" / source.name,
-            ASSETS / "legacy/agents" / source.name,
-        ]:
-            if baseline.is_file():
-                defaults.add(baseline.read_bytes())
+        defaults = {
+            digest(source.read_bytes()),
+            digest(claude.encode()),
+            UPGRADE_HASHES.get("agents/" + source.name),
+        }
         if selected is None:
             global_path = Path.home() / ".claude/agents" / source.name
             global_body = plan.read(global_path)
-            if global_body is not None and global_body not in defaults:
+            if global_body is not None and digest(global_body) not in defaults:
                 selected = global_body
                 selected_path = global_path
         if selected is not None:
             # Keep Claude metadata intact while translating only its role body.
             claude = selected
             _, codex = agent_outputs(selected.decode(), source.stem)
-            if selected not in defaults:
+            if digest(selected) not in defaults:
                 plan.messages.append(
                     f"WARN converted preserved custom body from {selected_path}; Claude metadata is preserved, but review tool/model references and permission parity manually for Codex"
                 )
@@ -298,20 +297,27 @@ def install_skill(plan: Plan, destination: Path) -> None:
     if not isinstance(manifest, dict):
         raise TypeError(f"Invalid installation manifest: {manifest_path}")
     updated = dict(manifest)
-    obsolete = destination / "assets/legacy/SKILL.md"
-    old = plan.read(obsolete)
-    if old is not None:
-        if old == (ASSETS / "legacy/skill-baseline.txt").read_bytes():
-            plan.backup(obsolete, old)
-            plan.removals.append(obsolete)
-            plan.messages.append(
-                f"REMOVE duplicate legacy skill {obsolete} (backed up)"
-            )
-            updated.pop("assets/legacy/SKILL.md", None)
+    obsolete = {
+        "assets/legacy/" + name: fingerprint
+        for name, fingerprint in UPGRADE_HASHES.items()
+    }
+    obsolete["assets/legacy/skill-baseline.txt"] = UPGRADE_HASHES["SKILL.md"]
+    obsolete.update({
+        name: fingerprint for name, fingerprint in UPGRADE_HASHES.items()
+        if name.startswith("agents/")
+    })
+    for relative, fingerprint in obsolete.items():
+        target = destination / relative
+        old = plan.read(target)
+        if old is None:
+            updated.pop(relative, None)
+        elif digest(old) in {fingerprint, manifest.get(relative)}:
+            plan.backup(target, old)
+            plan.removals.append(target)
+            plan.messages.append(f"REMOVE obsolete snapshot {target} (backed up)")
+            updated.pop(relative, None)
         else:
-            plan.messages.append(
-                f"WARN preserve customized legacy skill {obsolete}; rename it to avoid duplicate discovery"
-            )
+            plan.messages.append(f"WARN preserve customized obsolete snapshot {target}")
     for source in sorted(SKILL.rglob("*")):
         if (
             not source.is_file()
@@ -325,16 +331,7 @@ def install_skill(plan: Plan, destination: Path) -> None:
         current = plan.read(target)
         known = manifest.get(relative.as_posix())
         replace = current is not None and known == digest(current)
-        baseline = (
-            ASSETS
-            / "legacy"
-            / ("skill-baseline.txt" if relative.name == "SKILL.md" else relative.name)
-        )
-        if (
-            relative.as_posix() in {"SKILL.md", "CLAUDE.md"}
-            and baseline.exists()
-            and current == baseline.read_bytes()
-        ):
+        if current is not None and digest(current) == UPGRADE_HASHES.get(relative.as_posix()):
             replace = True
         if plan.put(target, source.read_bytes(), replace=replace):
             updated[relative.as_posix()] = digest(source.read_bytes())
@@ -351,13 +348,12 @@ def install_user(plan: Plan, home: Path) -> None:
     for source in roles():
         target = home / ".claude/agents" / source.name
         current = plan.read(target)
-        original = SKILL.parent / "agents" / source.name
-        if not original.is_file():
-            original = ASSETS / "legacy/agents" / source.name
         canonical = source.read_text()
         claude, codex = agent_outputs(canonical, source.stem)
-        baseline = original.read_bytes() if original.is_file() else None
-        if current is not None and current != claude.encode() and current != baseline:
+        old_default = current is not None and digest(current) == UPGRADE_HASHES.get(
+            "agents/" + source.name
+        )
+        if current is not None and current != claude.encode() and not old_default:
             plan.put(target, claude)
             _, codex = agent_outputs(current.decode(), source.stem)
             plan.messages.append(
@@ -365,7 +361,7 @@ def install_user(plan: Plan, home: Path) -> None:
             )
         else:
             plan.put(
-                target, claude, replace=current is not None and current == baseline
+                target, claude, replace=old_default
             )
         plan.put(home / ".codex/agents" / (source.stem + ".toml"), codex)
 

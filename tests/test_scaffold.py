@@ -1,6 +1,8 @@
 """Exercise scaffolding through its public CLI using isolated project and home trees."""
 
+import hashlib
 import json
+import shutil
 import os
 import subprocess
 import sys
@@ -22,13 +24,14 @@ class ScaffoldTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.project = self.root / "project"
         self.home = self.root / "home"
+        self.script = SCRIPT
         self.project.mkdir()
         self.home.mkdir()
 
     def run_cli(self, *args, successful=True):
         environment = dict(os.environ, HOME=str(self.home), PYTHONDONTWRITEBYTECODE="1")
         result = subprocess.run(
-            [sys.executable, str(SCRIPT), *map(str, args)],
+            [sys.executable, str(self.script), *map(str, args)],
             cwd=self.root,
             env=environment,
             text=True,
@@ -87,22 +90,78 @@ class ScaffoldTests(unittest.TestCase):
             (self.project / "AGENTS.md").read_text(),
         )
 
-    def test_only_one_discoverable_skill_and_old_snapshot_cleanup(self):
-        legacy = self.home / ".agents/skills/init-project/assets/legacy/SKILL.md"
-        legacy.parent.mkdir(parents=True)
-        baseline = (ROOT / "init-project/assets/legacy/skill-baseline.txt").read_bytes()
-        legacy.write_bytes(baseline)
+    def use_old_defaults_fixture(self):
+        skill = self.root / "source/init-project"
+        shutil.copytree(ROOT / "init-project", skill)
+        self.script = skill / "scripts/scaffold.py"
+        hashes_path = skill / "assets/upgrade-hashes.json"
+        hashes = json.loads(hashes_path.read_text())
+        fixtures = {
+            name: f"# Previous default: {name}\n".encode() for name in hashes
+        }
+        hashes_path.write_text(json.dumps({
+            name: hashlib.sha256(body).hexdigest() for name, body in fixtures.items()
+        }))
+        return fixtures
+
+    def test_old_defaults_upgrade_without_bundled_snapshots(self):
+        fixtures = self.use_old_defaults_fixture()
+        destination = self.home / ".agents/skills/init-project"
+        for name in ("SKILL.md", "CLAUDE.md"):
+            self.write(str(destination / name), fixtures[name].decode())
+        for name, body in fixtures.items():
+            if name.startswith("agents/"):
+                self.write(".claude/" + name, body.decode(), root=self.home)
+        before = self.snapshot(self.home)
         self.install(apply=False)
-        self.assertTrue(legacy.exists())
+        self.assertEqual(self.snapshot(self.home), before)
         self.install()
-        self.assertFalse(legacy.exists())
-        self.assertEqual(
-            len(list((self.home / ".agents/skills/init-project").rglob("SKILL.md"))), 1
-        )
-        self.assertEqual(
-            next(legacy.parent.glob("SKILL.md.init-project-backup-*")).read_bytes(),
-            baseline,
-        )
+        self.assertNotEqual((destination / "SKILL.md").read_bytes(), fixtures["SKILL.md"])
+        for name in AGENTS:
+            actual = (self.home / f".claude/agents/{name}.md").read_bytes()
+            self.assertNotEqual(actual, fixtures[f"agents/{name}.md"])
+        self.assertFalse((destination / "assets/legacy").exists())
+        self.script = destination / "scripts/scaffold.py"
+        before = self.snapshot(self.home)
+        self.install()
+        self.assertEqual(self.snapshot(self.home), before)
+        self.scaffold()
+        self.assertTrue((self.project / ".codex/agents/code-reviewer.toml").exists())
+
+    def test_obsolete_snapshots_cleaned_and_customizations_preserved(self):
+        fixtures = self.use_old_defaults_fixture()
+        destination = self.home / ".agents/skills/init-project"
+        old_paths = {
+            "assets/legacy/SKILL.md": fixtures["SKILL.md"],
+            "assets/legacy/skill-baseline.txt": fixtures["SKILL.md"],
+            "assets/legacy/CLAUDE.md": fixtures["CLAUDE.md"],
+            "assets/legacy/agents/code-reviewer.md": b"Managed previous version\n",
+            "agents/code-reviewer.md": fixtures["agents/code-reviewer.md"],
+        }
+        for name, body in old_paths.items():
+            self.write(str(destination / name), body.decode())
+        manifest = {name: hashlib.sha256(body).hexdigest() for name, body in old_paths.items()}
+        self.write(str(destination / ".init-project-manifest.json"), json.dumps(manifest))
+        custom = destination / "assets/legacy/CLAUDE.md"
+        custom.write_text("Customized instructions\n")
+        before = self.snapshot(self.home)
+        self.install(apply=False)
+        self.assertEqual(self.snapshot(self.home), before)
+        self.install()
+        for name, body in old_paths.items():
+            path = destination / name
+            if path == custom:
+                self.assertEqual(path.read_text(), "Customized instructions\n")
+            else:
+                self.assertFalse(path.exists())
+                self.assertEqual(next(path.parent.glob(path.name + ".init-project-backup-*")).read_bytes(), body)
+        self.assertEqual(len(list(destination.rglob("SKILL.md"))), 1)
+        updated = json.loads((destination / ".init-project-manifest.json").read_text())
+        self.assertNotIn("assets/legacy/SKILL.md", updated)
+        self.assertIn("assets/legacy/CLAUDE.md", updated)
+        before = self.snapshot(self.home)
+        self.install()
+        self.assertEqual(self.snapshot(self.home), before)
 
     def test_project_dry_run_does_not_write(self):
         self.scaffold(apply=False)
