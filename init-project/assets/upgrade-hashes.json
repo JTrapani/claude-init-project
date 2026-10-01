@@ -4,5 +4,7 @@
   "agents/code-reviewer.md": "14d4bde8ce702e11748bef2273b8029e1a9e78dbd2478a313f51c992972b7ad5",
   "agents/doc-generator.md": "0507685da09498f604d4cccf141816ff51f6f80f6edc3b5fd750c99018a14619",
   "agents/git-workflow.md": "630fea761512636ba6e2fba42952866ffd06c742ed35e58b77596f1faf22e1a8",
-  "agents/test-writer.md": "0c11f44a055f985055989a0ce47289790bba123e71674a17b60a00b89804618f"
+  "agents/test-writer.md": "0c11f44a055f985055989a0ce47289790bba123e71674a17b60a00b89804618f",
+  "skills/to-spec/SKILL.md": "43ad9cf318e5e7d3d1fa360253a37021796dc87a0c2e595ad262661a10f85088",
+  "skills/to-tickets/SKILL.md": "5c9fba69845c2519b9b35b9af42ae5142c21f8ca15ac2123dc2722002c8058ae"
 }

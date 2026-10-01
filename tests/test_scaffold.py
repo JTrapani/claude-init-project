@@ -15,6 +15,9 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "init-project" / "scripts" / "scaffold.py"
 AGENTS = ("code-reviewer", "git-workflow", "doc-generator", "test-writer")
+BUNDLED = ROOT / "init-project" / "assets" / "skills"
+SKILLS = ("ask-sme", "grill-me", "grilling", "to-spec", "to-tickets")
+TOOLS = (".claude", ".agents")
 
 
 class ScaffoldTests(unittest.TestCase):
@@ -298,6 +301,69 @@ class ScaffoldTests(unittest.TestCase):
         before = self.snapshot(self.home)
         self.install()
         self.assertEqual(self.snapshot(self.home), before)
+
+    def test_user_install_copies_bundled_skills_for_both_tools(self):
+        self.install()
+        for tool in TOOLS:
+            for name in SKILLS:
+                for relative in ("SKILL.md", "agents/openai.yaml"):
+                    installed = self.home / tool / "skills" / name / relative
+                    self.assertEqual(
+                        installed.read_bytes(),
+                        (BUNDLED / name / relative).read_bytes(),
+                        installed,
+                    )
+
+    def test_installed_init_project_has_no_nested_skill_files(self):
+        self.install()
+        for tool in TOOLS:
+            skill = self.home / tool / "skills/init-project"
+            self.assertEqual(list(skill.rglob("SKILL.md")), [skill / "SKILL.md"])
+
+    def test_install_from_installed_copy_reports_skipped_bundled_skills(self):
+        self.install()
+        self.script = self.home / ".agents/skills/init-project/scripts/scaffold.py"
+        before = self.snapshot(self.home)
+        result = self.install()
+        self.assertIn("SKIP bundled skills", result.stdout)
+        self.assertEqual(self.snapshot(self.home), before)
+
+    def test_previous_default_bundled_skill_is_replaced_with_backup(self):
+        fixtures = self.use_old_defaults_fixture()
+        previous = fixtures["skills/to-spec/SKILL.md"]
+        for tool in TOOLS:
+            self.write(f"{tool}/skills/to-spec/SKILL.md", previous.decode(), root=self.home)
+        self.install()
+        for tool in TOOLS:
+            skill = self.home / tool / "skills/to-spec"
+            self.assertEqual(
+                (skill / "SKILL.md").read_bytes(), (BUNDLED / "to-spec/SKILL.md").read_bytes()
+            )
+            backup = next(skill.glob("SKILL.md.init-project-backup-*"))
+            self.assertEqual(backup.read_bytes(), previous)
+
+    def test_customized_bundled_skill_is_preserved_with_proposal(self):
+        custom = "# My own to-tickets\n"
+        for tool in TOOLS:
+            self.write(f"{tool}/skills/to-tickets/SKILL.md", custom, root=self.home)
+        self.install()
+        for tool in TOOLS:
+            skill = self.home / tool / "skills/to-tickets"
+            self.assertEqual((skill / "SKILL.md").read_text(), custom)
+            self.assertEqual(
+                (skill / "SKILL.md.init-project-proposed").read_bytes(),
+                (BUNDLED / "to-tickets/SKILL.md").read_bytes(),
+            )
+        before = self.snapshot(self.home)
+        self.install()
+        self.assertEqual(self.snapshot(self.home), before)
+
+    def test_bundled_skill_hash_entries_name_bundled_files(self):
+        hashes = json.loads((ROOT / "init-project/assets/upgrade-hashes.json").read_text())
+        entries = [name for name in hashes if name.startswith("skills/")]
+        self.assertTrue(entries)
+        for name in entries:
+            self.assertTrue((BUNDLED / name.removeprefix("skills/")).is_file(), name)
 
     def test_install_preserves_custom_agents_and_extra_skill_files(self):
         custom = "---\nname: code-reviewer\ndescription: Custom reviewer\n---\n\nUse our custom review checklist.\n"

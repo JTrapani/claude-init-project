@@ -1,0 +1,5 @@
+interface:
+  display_name: "Ask SME"
+  short_description: "Ask a ticket's SME, reporter or lead a question"
+policy:
+  allow_implicit_invocation: false

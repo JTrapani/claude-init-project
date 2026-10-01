@@ -11,7 +11,15 @@ from pathlib import Path
 
 SKILL = Path(__file__).resolve().parent.parent
 ASSETS = SKILL / "assets"
+BUNDLED_SKILLS = ASSETS / "skills"
 UPGRADE_HASHES = json.loads((ASSETS / "upgrade-hashes.json").read_text())
+# Entries under "skills/<name>/" are previous defaults of the bundled skills in assets/skills.
+INIT_PROJECT_HASHES = {
+    name: fingerprint
+    for name, fingerprint in UPGRADE_HASHES.items()
+    if not name.startswith("skills/")
+}
+MANIFEST = ".init-project-manifest.json"
 MARKER = "<!-- init-project:shared-guidance -->"
 
 
@@ -290,20 +298,77 @@ def project(plan: Plan, root: Path) -> None:
         )
 
 
-def install_skill(plan: Plan, destination: Path) -> None:
-    manifest_path = destination / ".init-project-manifest.json"
+def read_manifest(plan: Plan, destination: Path) -> dict:
+    manifest_path = destination / MANIFEST
     manifest_data = plan.read(manifest_path)
     manifest = json.loads(manifest_data) if manifest_data else {}
     if not isinstance(manifest, dict):
         raise TypeError(f"Invalid installation manifest: {manifest_path}")
+    return manifest
+
+
+def copy_skill(
+    plan: Plan,
+    source_root: Path,
+    destination: Path,
+    manifest: dict,
+    updated: dict,
+    previous_defaults: dict[str, str],
+    exclude: Path | None = None,
+) -> None:
+    """Replace a file only when it matches the manifest or a previous default; otherwise propose."""
+    for source in sorted(source_root.rglob("*")):
+        if (
+            not source.is_file()
+            or (exclude is not None and exclude in source.parents)
+            or "__pycache__" in source.parts
+            or source.name.endswith(".pyc")
+            or ".init-project-" in source.name
+        ):
+            continue
+        relative = source.relative_to(source_root).as_posix()
+        target = destination / relative
+        current = plan.read(target)
+        replace = current is not None and digest(current) in {
+            manifest.get(relative),
+            previous_defaults.get(relative),
+        }
+        if plan.put(target, source.read_bytes(), replace=replace):
+            updated[relative] = digest(source.read_bytes())
+    plan.put(
+        destination / MANIFEST,
+        json.dumps(updated, indent=2, sort_keys=True) + "\n",
+        replace=True,
+    )
+
+
+def bundled_skills() -> list[Path]:
+    if not BUNDLED_SKILLS.is_dir():
+        return []
+    return sorted(path for path in BUNDLED_SKILLS.iterdir() if path.is_dir())
+
+
+def install_bundled_skill(plan: Plan, source: Path, destination: Path) -> None:
+    prefix = f"skills/{source.name}/"
+    previous_defaults = {
+        name.removeprefix(prefix): fingerprint
+        for name, fingerprint in UPGRADE_HASHES.items()
+        if name.startswith(prefix)
+    }
+    manifest = read_manifest(plan, destination)
+    copy_skill(plan, source, destination, manifest, dict(manifest), previous_defaults)
+
+
+def install_skill(plan: Plan, destination: Path) -> None:
+    manifest = read_manifest(plan, destination)
     updated = dict(manifest)
     obsolete = {
         "assets/legacy/" + name: fingerprint
-        for name, fingerprint in UPGRADE_HASHES.items()
+        for name, fingerprint in INIT_PROJECT_HASHES.items()
     }
-    obsolete["assets/legacy/skill-baseline.txt"] = UPGRADE_HASHES["SKILL.md"]
+    obsolete["assets/legacy/skill-baseline.txt"] = INIT_PROJECT_HASHES["SKILL.md"]
     obsolete.update({
-        name: fingerprint for name, fingerprint in UPGRADE_HASHES.items()
+        name: fingerprint for name, fingerprint in INIT_PROJECT_HASHES.items()
         if name.startswith("agents/")
     })
     for relative, fingerprint in obsolete.items():
@@ -318,33 +383,22 @@ def install_skill(plan: Plan, destination: Path) -> None:
             updated.pop(relative, None)
         else:
             plan.messages.append(f"WARN preserve customized obsolete snapshot {target}")
-    for source in sorted(SKILL.rglob("*")):
-        if (
-            not source.is_file()
-            or "__pycache__" in source.parts
-            or source.name.endswith(".pyc")
-            or ".init-project-" in source.name
-        ):
-            continue
-        relative = source.relative_to(SKILL)
-        target = destination / relative
-        current = plan.read(target)
-        known = manifest.get(relative.as_posix())
-        replace = current is not None and known == digest(current)
-        if current is not None and digest(current) == UPGRADE_HASHES.get(relative.as_posix()):
-            replace = True
-        if plan.put(target, source.read_bytes(), replace=replace):
-            updated[relative.as_posix()] = digest(source.read_bytes())
-    plan.put(
-        manifest_path,
-        json.dumps(updated, indent=2, sort_keys=True) + "\n",
-        replace=True,
+    # Codex discovers every nested SKILL.md, so installed copies omit the bundled skill sources.
+    copy_skill(
+        plan, SKILL, destination, manifest, updated, INIT_PROJECT_HASHES, BUNDLED_SKILLS
     )
 
 
 def install_user(plan: Plan, home: Path) -> None:
-    for directory in [".agents/skills/init-project", ".claude/skills/init-project"]:
-        install_skill(plan, home / directory)
+    skills = bundled_skills()
+    if not skills:
+        plan.messages.append(
+            f"SKIP bundled skills: {BUNDLED_SKILLS} is missing; run ./install.sh from the repository checkout to install them"
+        )
+    for directory in [".agents/skills", ".claude/skills"]:
+        install_skill(plan, home / directory / "init-project")
+        for source in skills:
+            install_bundled_skill(plan, source, home / directory / source.name)
     for source in roles():
         target = home / ".claude/agents" / source.name
         current = plan.read(target)

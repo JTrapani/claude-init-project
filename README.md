@@ -30,6 +30,9 @@ User paths:
 - `~/.claude/skills/init-project/`: Claude skill.
 - `~/.codex/agents/*.toml`: Codex roles.
 - `~/.claude/agents/*.md`: Claude roles.
+- `~/.agents/skills/<name>/` and `~/.claude/skills/<name>/`: the bundled Linear workflow skills, `grill-me`, `grilling`, `to-spec`, `to-tickets` and `ask-sme`, for both clients.
+
+The bundled skills install only when the installer runs from this repository. An installed `init-project` copy does not carry their sources, because Codex scans skill folders recursively and would list them twice; running its scaffold with `--install-user` reports them as skipped.
 
 After installation, start a fresh client session if skill discovery has not refreshed. Invoke `/init-project` in Claude or select the `init-project` skill in Codex. Both use the same scaffold engine.
 
@@ -80,9 +83,14 @@ The first migration favors preserving content over forcing old repositories into
 
 ## Canonical sources
 
-Edit `init-project/assets/workflow.md` for shared doctrine and `init-project/assets/agents/*.md` for the four roles: `code-reviewer`, `git-workflow`, `doc-generator`, and `test-writer`. Both native formats derive from those definitions. Defaults inherit the client's model rather than hardcoding Claude or OpenAI model names.
+Edit `init-project/assets/workflow.md` for shared doctrine and `init-project/assets/agents/*.md` for the four roles: `code-reviewer`, `git-workflow`, `doc-generator`, and `test-writer`. Both native formats derive from those definitions. Edit `init-project/assets/skills/<name>/` for the bundled skills; each installs as-is for both clients.
 
-Compact content hashes recognize older defaults without shipping historical instruction copies. Install manifests track managed files; customized agents are never replaced just because their version stamp is old.
+- `/grill-me` and `grilling`: unchanged copies of the upstream skills; `/grill-me` calls `grilling`.
+- `/to-spec`: writes the spec into the parent Linear issue's description. It creates no issue and leaves no local file.
+- `/to-tickets`: creates sub-issues with blocking links, or updates a single ticket in place. It sets points, adds `Betting Table` unless the ticket is in the current cycle, and moves tickets to `Backlog - Groomed`. It never applies `ready-for-agent` or `ready-for-human` and never creates labels.
+- `/ask-sme`: posts a question as a comment and adds `needs-info`. The first word, `SME:` (default), `Reporter:` or `Lead:`, names who answers. Defaults inherit the client's model rather than hardcoding Claude or OpenAI model names.
+
+Compact content hashes recognize older defaults without shipping historical instruction copies. Entries under `skills/<name>/` in `upgrade-hashes.json` are the upstream versions the bundled forks replace, so an unmodified upstream copy is backed up and upgraded instead of producing a proposal. Install manifests track managed files; customized agents are never replaced just because their version stamp is old.
 
 ## Permissions and compatibility
 
